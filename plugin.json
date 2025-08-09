@@ -1,0 +1,23 @@
+{
+  "slug": "testplug",
+  "name": "testplug",
+  "version": "2.0.0",
+  "license": "proprietary",
+  "brand": "testplug",
+  "author": "",
+  "authorEmail": "",
+  "authorUrl": "",
+  "pluginUrl": "",
+  "manualUrl": "",
+  "sourceUrl": "",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": [
+    {
+      "slug": "testmodule",
+      "name": "testmodule",
+      "description": "",
+      "tags": []
+    }
+  ]
+}
