@@ -3,7 +3,9 @@
 
 struct Testmodule : Module {
 	enum ParamIds {
-		PITCH_PARAM,
+		PCOURSE_PARAM,
+		PFINE_PARAM,
+		PULSEWIDTH_PARAM,
 		WAVE_PARAM,
 		NUM_PARAMS
 	};

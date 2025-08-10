@@ -4,8 +4,12 @@
 
 Testmodule::Testmodule() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
-  configParam(PITCH_PARAM, 0.f, 1.f, 0.5f, "Frequency", " Hz", std::pow(2, 1.f / 12.f),
+  configParam(PFINE_PARAM, 0.f, 1.f, 0.5f, "Frequency", " Hz", std::pow(2, 1.f / 12.f),
               dsp::FREQ_C4, 0.f);
+  configParam(PCOURSE_PARAM, 0.f, 1.f, 0.5f, "Frequency", " Hz", 4.f,
+              dsp::FREQ_C4, 0.f);
+  configParam(PULSEWIDTH_PARAM, 0.f, 1.f, 0.5f, "Pulse Width", " %", 0.f);
+
   auto waveParam =
       configSwitch(WAVE_PARAM, 0.f, 3.f, 0.f, "Wave", {"Sin", "Triangle", "Sawtooth", "Pulse"});
   waveParam->snapEnabled = true;
@@ -18,7 +22,7 @@ void Testmodule::process(const ProcessArgs &args) {
   // const Waves waveform = (Waves) params[WAVE_PARAM].getValue();
 
   // Compute the frequency from the pitch parameter and input
-  float pitch = params[PITCH_PARAM].getValue();
+  float pitch = params[PFINE_PARAM].getValue() + params[PCOURSE_PARAM].getValue();
   pitch += inputs[PITCH_INPUT].getVoltage();
   // The default frequency is C4 = 261.6256f
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
@@ -55,10 +59,13 @@ void Testmodule::process(const ProcessArgs &args) {
     // 3 - 0.5 * 4 = 1
     triangle = 3.f - phase * 4.f; // Falling: 0.5→1 becomes +1→-1
 
+  // Pulse width
+  float pulseWidth = params[PULSEWIDTH_PARAM].getValue();
+
   float square;
   // since .5 is the middle of the phase
   // we divide to top/ bottom at this point
-  if (phase > 0.5f)
+  if (phase > pulseWidth)
     square = -1.f;
   else
     square = 1.f;
@@ -95,15 +102,19 @@ TestmoduleWidget::TestmoduleWidget(Testmodule *module) {
       Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
   addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 46)), module, Testmodule::PITCH_PARAM));
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 46)), module, Testmodule::PFINE_PARAM));
   addParam(
-      createParamCentered<BefacoSwitch>(mm2px(Vec(15.24, 66)), module, Testmodule::WAVE_PARAM));
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(30.48, 46)), module, Testmodule::PCOURSE_PARAM));
+  addParam(
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(45.72, 46)), module, Testmodule::PULSEWIDTH_PARAM));
+  addParam(
+      createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 66)), module, Testmodule::WAVE_PARAM));
 
   addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 77.478)), module, Testmodule::PITCH_INPUT));
+      createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 66)), module, Testmodule::PITCH_INPUT));
 
   addOutput(
-      createOutputCentered<PJ301MPort>(mm2px(Vec(15.24, 108.713)), module, Testmodule::WAVE_OUT));
+      createOutputCentered<PJ301MPort>(mm2px(Vec(45.72, 66)), module, Testmodule::WAVE_OUT));
 
   addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(15.24, 25.81)), module,
                                                       Testmodule::BLINK_LIGHT));
