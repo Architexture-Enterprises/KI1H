@@ -28,6 +28,7 @@ struct KI1H_VCO : Module {
     WAVE_PARAM,
     SYNC_PARAM,
     FM_PARAM,
+    FM_SWITCH_PARAM,
     PCOURSE2_PARAM,
     PFINE2_PARAM,
     PULSEWIDTH2_PARAM,
@@ -39,12 +40,13 @@ struct KI1H_VCO : Module {
     PITCH2_INPUT,
     PW1_INPUT,
     PW2_INPUT,
+    FM_INPUT,
     WEAK_SYNC,
     STRONG_SYNC,
     NUM_INPUTS
   };
   enum OutputIds { WAVE_OUT, WAVE2_OUT, NUM_OUTPUTS };
-  enum LightIds { BLINK_LIGHT, NUM_LIGHTS };
+  enum LightIds { BLINK1_LIGHT, BLINK2_LIGHT, NUM_LIGHTS };
   enum Waves { WAVE_TRI, WAVE_SAW, WAVE_SQ, WAVE_PWM };
 
   KI1H_VCO();
