@@ -148,12 +148,11 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
 
   addParam(
       createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 46)), module, KI1H_VCO::PFINE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(30.48, 46)), module,
-                                               KI1H_VCO::PCOURSE_PARAM));
+  addParam(
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(30.48, 46)), module, KI1H_VCO::PCOURSE_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(45.72, 46)), module,
                                                KI1H_VCO::PULSEWIDTH_PARAM));
-  addParam(
-      createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 66)), module, KI1H_VCO::WAVE_PARAM));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 66)), module, KI1H_VCO::WAVE_PARAM));
 
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 66)), module, KI1H_VCO::PITCH_INPUT));
 
@@ -164,21 +163,18 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
 
   addParam(
       createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 86)), module, KI1H_VCO::PFINE2_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(30.48, 86)), module,
-                                               KI1H_VCO::PCOURSE2_PARAM));
+  addParam(
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(30.48, 86)), module, KI1H_VCO::PCOURSE2_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(45.72, 86)), module,
                                                KI1H_VCO::PULSEWIDTH2_PARAM));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(60.96, 86)), module, KI1H_VCO::WEAK_SYNC));
-  addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(60.96, 106)), module, KI1H_VCO::STRONG_SYNC));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(60.96, 106)), module, KI1H_VCO::STRONG_SYNC));
   addParam(
       createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 106)), module, KI1H_VCO::WAVE2_PARAM));
 
-  addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 106)), module, KI1H_VCO::PITCH2_INPUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 106)), module, KI1H_VCO::PITCH2_INPUT));
 
-  addOutput(
-      createOutputCentered<PJ301MPort>(mm2px(Vec(45.72, 106)), module, KI1H_VCO::WAVE2_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(45.72, 106)), module, KI1H_VCO::WAVE2_OUT));
 }
 
 Model *modelKI1H_VCO = createModel<KI1H_VCO, KI1H_VCOWidget>("KI1H-VCO");

@@ -1,6 +1,5 @@
 #pragma once
 #include "plugin.hpp"
-#include <istream>
 
 // Reusable oscillator class for DRY code
 class Oscillator {
