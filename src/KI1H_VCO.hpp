@@ -4,8 +4,8 @@
 // Reusable oscillator class for DRY code
 class Oscillator {
 public:
-  void process(float pitch, float softSync, float hardSync, float pulseWidth, int waveType,
-               float sampleTime);
+  void process(float pitch, float linFM, float softSync, float hardSync, float pulseWidth,
+               int waveType, float sampleTime);
   float getOutput() const {
     return output;
   }

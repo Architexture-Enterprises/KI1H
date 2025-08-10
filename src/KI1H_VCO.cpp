@@ -9,10 +9,12 @@
 dsp::SchmittTrigger syncTrigger;
 
 // Oscillator class implementation
-void Oscillator::process(float pitch, float softSync, float hardSync, float pulseWidth,
+void Oscillator::process(float pitch, float linFM, float softSync, float hardSync, float pulseWidth,
                          int waveType, float sampleTime) {
   // Calculate frequency from pitch (1V/octave)
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+
+  freq += freq * linFM * 0.1f;
 
   // Hard sync - digital reset when sync signal crosses threshold
   if (syncTrigger.process(hardSync)) {
@@ -125,7 +127,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   float pulseWidth1 = params[PULSEWIDTH_PARAM].getValue();
   int waveType1 = (int)params[WAVE_PARAM].getValue();
 
-  osc1.process(pitch1, 0.f, 0.f, pulseWidth1 + pwm1, waveType1, args.sampleTime);
+  osc1.process(pitch1, 0.f, 0.f, 0.f, pulseWidth1 + pwm1, waveType1, args.sampleTime);
   outputs[WAVE_OUT].setVoltage(CV_SCALE * osc1.getOutput());
 
   // Process Oscillator 2
@@ -142,8 +144,9 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   else
     fmVal = osc1.getOutput() * CV_SCALE;
   // FM SWITCH 0 is off, 1 is Lin and 2 is Log
+  float linFM = 0.f;
   if (fmSwitch == 1)
-    pitch2 += fmVal * params[FM_PARAM].getValue() * 0.2f;
+    linFM = 1;
   if (fmSwitch == 2)
     pitch2 += fmVal * params[FM_PARAM].getValue() * 0.2f;
   // PWM_OFFSET
@@ -167,7 +170,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   float pulseWidth2 = params[PULSEWIDTH2_PARAM].getValue();
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
 
-  osc2.process(pitch2, softSync, hardSync, pulseWidth2 + pwm2, waveType2, args.sampleTime);
+  osc2.process(pitch2, linFM, softSync, hardSync, pulseWidth2 + pwm2, waveType2, args.sampleTime);
   outputs[WAVE2_OUT].setVoltage(CV_SCALE * osc2.getOutput());
 
   // Blink light at the same frequency as oscillator 1
