@@ -121,28 +121,38 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   pitch1 += inputs[PITCH_INPUT].getVoltage();
   float pwm1 = 0;
   if (inputs[PW1_INPUT].isConnected())
-    pwm1 = inputs[PW1_INPUT].getVoltage() / 5.5f;
+    pwm1 = inputs[PW1_INPUT].getVoltage() / PWM_OFFSET;
   float pulseWidth1 = params[PULSEWIDTH_PARAM].getValue();
   int waveType1 = (int)params[WAVE_PARAM].getValue();
 
   osc1.process(pitch1, 0.f, 0.f, pulseWidth1 + pwm1, waveType1, args.sampleTime);
-  outputs[WAVE_OUT].setVoltage(5.f * osc1.getOutput());
+  outputs[WAVE_OUT].setVoltage(CV_SCALE * osc1.getOutput());
 
   // Process Oscillator 2
   int syncVal = (int)params[SYNC_PARAM].getValue();
   float pitch2 = params[PFINE2_PARAM].getValue() + params[PCOURSE2_PARAM].getValue();
   pitch2 += inputs[PITCH2_INPUT].getVoltage();
   int fmSwitch = (int)params[FM_SWITCH_PARAM].getValue();
+  // FM FOR OSC 2
+  // IF something is connected to the FM jackoverride hard wire
+  // Otherwise Osc1 is connected
   float fmVal = 1.f;
   if (inputs[FM_INPUT].isConnected())
     fmVal = inputs[FM_INPUT].getVoltage();
   else
-    fmVal = osc1.getOutput() * 5.f;
-  if (fmSwitch > 0)
-    pitch2 += fmVal * params[FM_PARAM].getValue();
+    fmVal = osc1.getOutput() * CV_SCALE;
+  // FM SWITCH 0 is off, 1 is Lin and 2 is Log
+  if (fmSwitch == 1)
+    pitch2 += fmVal * params[FM_PARAM].getValue() * 0.2f;
+  if (fmSwitch == 2)
+    pitch2 += fmVal * params[FM_PARAM].getValue() * 0.2f;
+  // PWM_OFFSET
+  // IF PWM source is connected we want
+  // the returned values to fall in the range of -.9 to .0.9
+  // this is why we divide by 110% of the expected input
   float pwm2 = 0;
   if (inputs[PW2_INPUT].isConnected())
-    pwm2 = inputs[PW2_INPUT].getVoltage() / 5.5f;
+    pwm2 = inputs[PW2_INPUT].getVoltage() / PWM_OFFSET;
   float softSync = 0.f;
   if (inputs[WEAK_SYNC].isConnected())
     softSync = inputs[WEAK_SYNC].getVoltage();
@@ -150,15 +160,15 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   if (inputs[STRONG_SYNC].isConnected())
     hardSync = inputs[STRONG_SYNC].getVoltage();
   if (syncVal == 0)
-    softSync += (5.f * osc1.getOutput());
+    softSync += (CV_SCALE * osc1.getOutput());
   else if (syncVal == 2)
-    hardSync += (5.f * osc1.getOutput());
+    hardSync += (CV_SCALE * osc1.getOutput());
 
   float pulseWidth2 = params[PULSEWIDTH2_PARAM].getValue();
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
 
   osc2.process(pitch2, softSync, hardSync, pulseWidth2 + pwm2, waveType2, args.sampleTime);
-  outputs[WAVE2_OUT].setVoltage(5.f * osc2.getOutput());
+  outputs[WAVE2_OUT].setVoltage(CV_SCALE * osc2.getOutput());
 
   // Blink light at the same frequency as oscillator 1
   float freq1 = dsp::FREQ_C4 * std::pow(2.f, pitch1);

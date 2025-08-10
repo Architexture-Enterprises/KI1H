@@ -55,6 +55,8 @@ struct KI1H_VCO : Module {
 private:
   Oscillator osc1, osc2;
   float blinkPhase = 0.f;
+  float CV_SCALE = 5.f;
+  float PWM_OFFSET = 5.5f;
 };
 
 struct KI1H_VCOWidget : ModuleWidget {
