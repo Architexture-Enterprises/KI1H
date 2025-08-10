@@ -4,18 +4,18 @@
 
 Testmodule::Testmodule() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
-  configParam(PFINE_PARAM, 0.f, 1.f, 0.5f, "Frequency", " Hz", std::pow(2, 1.f / 12.f),
+  configParam(PFINE_PARAM, 0.f, 1.f, 0.5f, "Detune", "Hz", std::pow(2, 1.f / 12.f),
               dsp::FREQ_C4, 0.f);
-  configParam(PCOURSE_PARAM, 0.f, 1.f, 0.5f, "Frequency", " Hz", 4.f,
+  configParam(PCOURSE_PARAM, 0.f, 1.f, 0.5f, "Frequency", " Hz", 7.f,
               dsp::FREQ_C4, 0.f);
-  configParam(PULSEWIDTH_PARAM, 0.f, 1.f, 0.5f, "Pulse Width", " %", 0.f);
+  configParam(PULSEWIDTH_PARAM, 0.1f, 0.9f, 0.5f, "Pulse Width", " %", 0.f, 100.f, 0.f);
 
   auto waveParam =
       configSwitch(WAVE_PARAM, 0.f, 3.f, 0.f, "Wave", {"Sin", "Triangle", "Sawtooth", "Pulse"});
   waveParam->snapEnabled = true;
 
   configInput(PITCH_INPUT, "1V/oct pitch");
-  configOutput(WAVE_OUT, "Sine");
+  configOutput(WAVE_OUT, "Waveform");
 }
 
 void Testmodule::process(const ProcessArgs &args) {
@@ -25,7 +25,7 @@ void Testmodule::process(const ProcessArgs &args) {
   float pitch = params[PFINE_PARAM].getValue() + params[PCOURSE_PARAM].getValue();
   pitch += inputs[PITCH_INPUT].getVoltage();
   // The default frequency is C4 = 261.6256f
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  float freq = dsp::FREQ_C0* std::pow(2.f, pitch);
 
   // Accumulate the phase
   phase += freq * args.sampleTime;
