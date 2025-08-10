@@ -146,7 +146,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // FM SWITCH 0 is off, 1 is Lin and 2 is Log
   float linFM = 0.f;
   if (fmSwitch == 1)
-    linFM = 1;
+    linFM = fmVal * params[FM_PARAM].getValue();
   if (fmSwitch == 2)
     pitch2 += fmVal * params[FM_PARAM].getValue() * 0.2f;
   // PWM_OFFSET
