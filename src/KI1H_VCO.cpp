@@ -82,12 +82,15 @@ KI1H_VCO::KI1H_VCO() {
   configParam(PFINE_PARAM, -0.5f, 0.5f, 0.f, "Detune", " cents", 0.f, 100.f, 0.f);
   configParam(PCOURSE_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
   configParam(PULSEWIDTH_PARAM, 0.1f, 0.9f, 0.5f, "Pulse Width", " %", 0.f, 100.f, 0.f);
-
+  auto syncParam = configSwitch(SYNC_PARAM, 0.f, 2.f, 1.f, "Sync", {"Strong", "OFF", "Weak"});
+  syncParam->snapEnabled = true;
+  configParam(FM_PARAM, 0.f, 1.f, 0.5f, "FM", " %", 0.f, 100.f, 0.f);
   auto waveParam =
       configSwitch(WAVE_PARAM, 0.f, 3.f, 0.f, "Wave", {"Sin", "Triangle", "Sawtooth", "Pulse"});
   waveParam->snapEnabled = true;
 
   configInput(PITCH_INPUT, "1V/oct pitch");
+  configInput(PW1_INPUT, "Pulsewidth");
   configOutput(WAVE_OUT, "Waveform");
   configParam(PFINE2_PARAM, -0.5f, 0.5f, 0.f, "Detune", " cents", 0.f, 100.f, 0.f);
   configParam(PCOURSE2_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
@@ -98,6 +101,7 @@ KI1H_VCO::KI1H_VCO() {
   waveParam2->snapEnabled = true;
 
   configInput(PITCH2_INPUT, "1V/oct pitch");
+  configInput(PW2_INPUT, "Pulsewidth");
   configInput(WEAK_SYNC, "Soft sync");
   configInput(STRONG_SYNC, "Hard sync");
   configOutput(WAVE2_OUT, "Waveform");
@@ -146,35 +150,35 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   addChild(createWidget<ScrewSilver>(
       Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 25)), module, KI1H_VCO::PFINE_PARAM));
   addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 46)), module, KI1H_VCO::PFINE_PARAM));
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(25, 25)), module, KI1H_VCO::PCOURSE_PARAM));
   addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(30.48, 46)), module, KI1H_VCO::PCOURSE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(45.72, 46)), module,
-                                               KI1H_VCO::PULSEWIDTH_PARAM));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 66)), module, KI1H_VCO::WAVE_PARAM));
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(40, 25)), module, KI1H_VCO::PULSEWIDTH_PARAM));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 45)), module, KI1H_VCO::WAVE_PARAM));
 
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 66)), module, KI1H_VCO::PITCH_INPUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 45)), module, KI1H_VCO::PITCH_INPUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(40, 45)), module, KI1H_VCO::PW1_INPUT));
 
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(45.72, 66)), module, KI1H_VCO::WAVE_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 45)), module, KI1H_VCO::WAVE_OUT));
 
-  addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(15.24, 25.81)), module,
+  addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(17.5, 35)), module,
                                                       KI1H_VCO::BLINK_LIGHT));
 
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 86)), module, KI1H_VCO::PFINE2_PARAM));
   addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 86)), module, KI1H_VCO::PFINE2_PARAM));
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(25, 86)), module, KI1H_VCO::PCOURSE2_PARAM));
   addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(30.48, 86)), module, KI1H_VCO::PCOURSE2_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(45.72, 86)), module,
-                                               KI1H_VCO::PULSEWIDTH2_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(60.96, 86)), module, KI1H_VCO::WEAK_SYNC));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(60.96, 106)), module, KI1H_VCO::STRONG_SYNC));
-  addParam(
-      createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 106)), module, KI1H_VCO::WAVE2_PARAM));
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(40, 86)), module, KI1H_VCO::PULSEWIDTH2_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 65)), module, KI1H_VCO::WEAK_SYNC));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 65)), module, KI1H_VCO::SYNC_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(40, 65)), module, KI1H_VCO::STRONG_SYNC));
 
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 106)), module, KI1H_VCO::PITCH2_INPUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 106)), module, KI1H_VCO::PITCH2_INPUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(40, 106)), module, KI1H_VCO::PW2_INPUT));
 
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(45.72, 106)), module, KI1H_VCO::WAVE2_OUT));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 106)), module, KI1H_VCO::WAVE2_PARAM));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 106)), module, KI1H_VCO::WAVE2_OUT));
 }
 
 Model *modelKI1H_VCO = createModel<KI1H_VCO, KI1H_VCOWidget>("KI1H-VCO");

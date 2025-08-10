@@ -21,9 +21,9 @@
       "build/src/KI1H_VCO.cpp.o",
       "src/KI1H_VCO.cpp"
     ],
-    "directory": "/Users/waldnzwrld/Code/testplug",
-    "file": "/Users/waldnzwrld/Code/testplug/src/KI1H_VCO.cpp",
-    "output": "/Users/waldnzwrld/Code/testplug/build/src/KI1H_VCO.cpp.o"
+    "directory": "/Users/waldnzwrld/Code/KI1H",
+    "file": "/Users/waldnzwrld/Code/KI1H/src/KI1H_VCO.cpp",
+    "output": "/Users/waldnzwrld/Code/KI1H/build/src/KI1H_VCO.cpp.o"
   },
   {
     "arguments": [
@@ -47,8 +47,8 @@
       "build/src/plugin.cpp.o",
       "src/plugin.cpp"
     ],
-    "directory": "/Users/waldnzwrld/Code/testplug",
-    "file": "/Users/waldnzwrld/Code/testplug/src/plugin.cpp",
-    "output": "/Users/waldnzwrld/Code/testplug/build/src/plugin.cpp.o"
+    "directory": "/Users/waldnzwrld/Code/KI1H",
+    "file": "/Users/waldnzwrld/Code/KI1H/src/plugin.cpp",
+    "output": "/Users/waldnzwrld/Code/KI1H/build/src/plugin.cpp.o"
   }
 ]
