@@ -21,7 +21,7 @@ private:
   float generateSquare(float ph, float pw);
 };
 
-struct Testmodule : Module {
+struct KI1H_VCO : Module {
   enum ParamIds {
     PCOURSE_PARAM,
     PFINE_PARAM,
@@ -38,7 +38,7 @@ struct Testmodule : Module {
   enum LightIds { BLINK_LIGHT, NUM_LIGHTS };
   enum Waves { WAVE_TRI, WAVE_SAW, WAVE_SQ, WAVE_PWM };
 
-  Testmodule();
+  KI1H_VCO();
   void process(const ProcessArgs &args) override;
 
 private:
@@ -46,6 +46,6 @@ private:
   float blinkPhase = 0.f;
 };
 
-struct TestmoduleWidget : ModuleWidget {
-  TestmoduleWidget(Testmodule *module);
+struct KI1H_VCOWidget : ModuleWidget {
+  KI1H_VCOWidget(KI1H_VCO *module);
 };

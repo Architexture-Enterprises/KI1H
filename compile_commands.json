@@ -18,12 +18,12 @@
       "-mmacosx-version-min=10.9",
       "-c",
       "-o",
-      "build/src/plugin.cpp.o",
-      "src/plugin.cpp"
+      "build/src/KI1H_VCO.cpp.o",
+      "src/KI1H_VCO.cpp"
     ],
     "directory": "/Users/waldnzwrld/Code/testplug",
-    "file": "/Users/waldnzwrld/Code/testplug/src/plugin.cpp",
-    "output": "/Users/waldnzwrld/Code/testplug/build/src/plugin.cpp.o"
+    "file": "/Users/waldnzwrld/Code/testplug/src/KI1H_VCO.cpp",
+    "output": "/Users/waldnzwrld/Code/testplug/build/src/KI1H_VCO.cpp.o"
   },
   {
     "arguments": [
@@ -44,11 +44,11 @@
       "-mmacosx-version-min=10.9",
       "-c",
       "-o",
-      "build/src/Testmodule.cpp.o",
-      "src/Testmodule.cpp"
+      "build/src/plugin.cpp.o",
+      "src/plugin.cpp"
     ],
     "directory": "/Users/waldnzwrld/Code/testplug",
-    "file": "/Users/waldnzwrld/Code/testplug/src/Testmodule.cpp",
-    "output": "/Users/waldnzwrld/Code/testplug/build/src/Testmodule.cpp.o"
+    "file": "/Users/waldnzwrld/Code/testplug/src/plugin.cpp",
+    "output": "/Users/waldnzwrld/Code/testplug/build/src/plugin.cpp.o"
   }
 ]

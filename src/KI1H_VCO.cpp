@@ -1,7 +1,8 @@
-#include "Testmodule.hpp"
+#include "KI1H_VCO.hpp"
 #include "componentlibrary.hpp"
 #include "dsp/common.hpp"
 #include "dsp/digital.hpp"
+#include "helpers.hpp"
 #include "window/Svg.hpp"
 
 dsp::SchmittTrigger syncTrigger;
@@ -12,20 +13,28 @@ void Oscillator::process(float pitch, float softSync, float hardSync, float puls
   // Calculate frequency from pitch (1V/octave)
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
-  float syncAmount = 0.2f;
-  float syncModulation = softSync * syncAmount * 0.1f; // Scale appropriately
-  float modulatedFreq = freq * (1.f + syncModulation);
-  if (softSync == 0.1f)
-    // Sync signal modulates the frequency directly
-
-    // Use modulated frequency for phase accumulation
-    phase += modulatedFreq * sampleTime;
-
+  // Hard sync - digital reset when sync signal crosses threshold
   if (syncTrigger.process(hardSync)) {
     phase = 0.f;
   }
 
-  // Accumulate phase
+  // Soft sync - analog-modeled continuous phase pulling
+  // The sync signal creates a "force" that pulls the phase toward reset
+  float syncPull = 0.f;
+  if (softSync > 0.1f) { // Only pull when sync signal is above noise floor
+    // Create exponential pull force - stronger as phase increases
+    float pullStrength = softSync * 0.15f;   // Scale sync signal
+    syncPull = pullStrength * phase * phase; // Quadratic pull (gets stronger near end of cycle)
+
+    // Pull phase backward toward 0, creating the chaotic analog behavior
+    phase -= syncPull * sampleTime * freq;
+
+    // Prevent phase from going negative
+    if (phase < 0.f)
+      phase = 0.f;
+  }
+
+  // Normal phase accumulation
   phase += freq * sampleTime;
   if (phase >= 1.f)
     phase -= 1.f;
@@ -68,7 +77,7 @@ float Oscillator::generateSquare(float ph, float pw) {
   return (ph > pw) ? -1.f : 1.f;
 }
 
-Testmodule::Testmodule() {
+KI1H_VCO::KI1H_VCO() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
   configParam(PFINE_PARAM, -0.5f, 0.5f, 0.f, "Detune", " cents", 0.f, 100.f, 0.f);
   configParam(PCOURSE_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
@@ -94,7 +103,7 @@ Testmodule::Testmodule() {
   configOutput(WAVE2_OUT, "Waveform");
 }
 
-void Testmodule::process(const ProcessArgs &args) {
+void KI1H_VCO::process(const ProcessArgs &args) {
   // Process Oscillator 1
   float pitch1 = params[PFINE_PARAM].getValue() + params[PCOURSE_PARAM].getValue();
   pitch1 += inputs[PITCH_INPUT].getVoltage();
@@ -127,9 +136,9 @@ void Testmodule::process(const ProcessArgs &args) {
   lights[BLINK_LIGHT].setBrightness(blinkPhase < 0.5f ? 1.f : 0.f);
 }
 
-TestmoduleWidget::TestmoduleWidget(Testmodule *module) {
+KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   setModule(module);
-  setPanel(createPanel(asset::plugin(pluginInstance, "res/MyModule.svg")));
+  setPanel(createPanel(asset::plugin(pluginInstance, "res/KI1H-VCO.svg")));
 
   addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
   addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
@@ -138,35 +147,38 @@ TestmoduleWidget::TestmoduleWidget(Testmodule *module) {
       Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
   addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 46)), module, Testmodule::PFINE_PARAM));
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 46)), module, KI1H_VCO::PFINE_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(30.48, 46)), module,
-                                               Testmodule::PCOURSE_PARAM));
+                                               KI1H_VCO::PCOURSE_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(45.72, 46)), module,
-                                               Testmodule::PULSEWIDTH_PARAM));
+                                               KI1H_VCO::PULSEWIDTH_PARAM));
   addParam(
-      createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 66)), module, Testmodule::WAVE_PARAM));
+      createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 66)), module, KI1H_VCO::WAVE_PARAM));
 
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 66)), module, Testmodule::PITCH_INPUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 66)), module, KI1H_VCO::PITCH_INPUT));
 
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(45.72, 66)), module, Testmodule::WAVE_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(45.72, 66)), module, KI1H_VCO::WAVE_OUT));
 
   addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(15.24, 25.81)), module,
-                                                      Testmodule::BLINK_LIGHT));
+                                                      KI1H_VCO::BLINK_LIGHT));
 
   addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 86)), module, Testmodule::PFINE2_PARAM));
+      createParamCentered<RoundBlackKnob>(mm2px(Vec(15.24, 86)), module, KI1H_VCO::PFINE2_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(30.48, 86)), module,
-                                               Testmodule::PCOURSE2_PARAM));
+                                               KI1H_VCO::PCOURSE2_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(45.72, 86)), module,
-                                               Testmodule::PULSEWIDTH2_PARAM));
+                                               KI1H_VCO::PULSEWIDTH2_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(60.96, 86)), module, KI1H_VCO::WEAK_SYNC));
+  addInput(
+      createInputCentered<PJ301MPort>(mm2px(Vec(60.96, 106)), module, KI1H_VCO::STRONG_SYNC));
   addParam(
-      createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 106)), module, Testmodule::WAVE2_PARAM));
+      createParamCentered<BefacoSwitch>(mm2px(Vec(30.48, 106)), module, KI1H_VCO::WAVE2_PARAM));
 
   addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 106)), module, Testmodule::PITCH2_INPUT));
+      createInputCentered<PJ301MPort>(mm2px(Vec(15.24, 106)), module, KI1H_VCO::PITCH2_INPUT));
 
   addOutput(
-      createOutputCentered<PJ301MPort>(mm2px(Vec(45.72, 106)), module, Testmodule::WAVE2_OUT));
+      createOutputCentered<PJ301MPort>(mm2px(Vec(45.72, 106)), module, KI1H_VCO::WAVE2_OUT));
 }
 
-Model *modelTestmodule = createModel<Testmodule, TestmoduleWidget>("testmodule");
+Model *modelKI1H_VCO = createModel<KI1H_VCO, KI1H_VCOWidget>("KI1H-VCO");

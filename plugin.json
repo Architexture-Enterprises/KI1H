@@ -1,23 +1,23 @@
 {
-  "slug": "testplug",
-  "name": "testplug",
-  "version": "2.0.0",
+  "slug": "Architexture",
+  "name": "Architexture",
+  "version": "0.0.1",
   "license": "proprietary",
-  "brand": "testplug",
-  "author": "",
-  "authorEmail": "",
-  "authorUrl": "",
-  "pluginUrl": "",
+  "brand": "Architexture",
+  "author": "Walden Donovan Tynan",
+  "authorEmail": "architextureenterprises@gmail.com",
+  "authorUrl": "https://github.com/architextureenterprises",
+  "pluginUrl": "https://github.com/architextureenterprises",
   "manualUrl": "",
   "sourceUrl": "",
   "donateUrl": "",
   "changelogUrl": "",
   "modules": [
     {
-      "slug": "testmodule",
-      "name": "testmodule",
-      "description": "",
-      "tags": []
+      "slug": "KI1H-VCO",
+      "name": "KI1H-VCO",
+      "description": "A VCO based on the Hun'ed VCO",
+      "tags": ["VCO", "Analog", "Oscillator"]
     }
   ]
 }
