@@ -4,6 +4,8 @@
 #include "dsp/digital.hpp"
 #include "window/Svg.hpp"
 
+dsp::SchmittTrigger syncTrigger;
+
 // Oscillator class implementation
 void Oscillator::process(float pitch, float softSync, float hardSync, float pulseWidth,
                          int waveType, float sampleTime) {
@@ -11,15 +13,14 @@ void Oscillator::process(float pitch, float softSync, float hardSync, float puls
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
   float syncAmount = 0.2f;
-  // Sync signal modulates the frequency directly
-  float baseFreq = dsp::FREQ_C4 * std::pow(2.f, pitch);
   float syncModulation = softSync * syncAmount * 0.1f; // Scale appropriately
-  float modulatedFreq = baseFreq * (1.f + syncModulation);
+  float modulatedFreq = freq * (1.f + syncModulation);
+  if (softSync == 0.1f)
+    // Sync signal modulates the frequency directly
 
-  // Use modulated frequency for phase accumulation
-  phase += modulatedFreq * sampleTime;
+    // Use modulated frequency for phase accumulation
+    phase += modulatedFreq * sampleTime;
 
-  dsp::SchmittTrigger syncTrigger;
   if (syncTrigger.process(hardSync)) {
     phase = 0.f;
   }
@@ -80,7 +81,7 @@ Testmodule::Testmodule() {
   configInput(PITCH_INPUT, "1V/oct pitch");
   configOutput(WAVE_OUT, "Waveform");
   configParam(PFINE2_PARAM, -0.5f, 0.5f, 0.f, "Detune", " cents", 0.f, 100.f, 0.f);
-  configParam(PCOURSE2_PARAM, -4.f, 3.f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam(PCOURSE2_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
   configParam(PULSEWIDTH2_PARAM, 0.1f, 0.9f, 0.5f, "Pulse Width", " %", 0.f, 100.f, 0.f);
 
   auto waveParam2 =
@@ -106,10 +107,10 @@ void Testmodule::process(const ProcessArgs &args) {
   // Process Oscillator 2
   float pitch2 = params[PFINE2_PARAM].getValue() + params[PCOURSE2_PARAM].getValue();
   pitch2 += inputs[PITCH2_INPUT].getVoltage();
-  float softSync = -99.f;
+  float softSync = 0.f;
   if (inputs[WEAK_SYNC].isConnected())
     softSync = inputs[WEAK_SYNC].getVoltage();
-  float hardSync = -99.f;
+  float hardSync = 0.f;
   if (inputs[STRONG_SYNC].isConnected())
     hardSync = inputs[STRONG_SYNC].getVoltage();
   float pulseWidth2 = params[PULSEWIDTH2_PARAM].getValue();
