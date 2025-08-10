@@ -1,41 +1,51 @@
 #pragma once
 #include "plugin.hpp"
+#include <istream>
 
-struct Testmodule : Module {
-	enum ParamIds {
-		PCOURSE_PARAM,
-		PFINE_PARAM,
-		PULSEWIDTH_PARAM,
-		WAVE_PARAM,
-		NUM_PARAMS
-	};
-	enum InputIds {
-		PITCH_INPUT,
-		NUM_INPUTS
-	};
-	enum OutputIds {
-		WAVE_OUT,
-		NUM_OUTPUTS
-	};
-	enum LightIds {
-		BLINK_LIGHT,
-		NUM_LIGHTS
-	};
-	enum Waves {
-		WAVE_TRI,
-		WAVE_SAW,
-		WAVE_SQ,
-		WAVE_PWM
-	};
-
-	Testmodule();
-	void process(const ProcessArgs &args) override;
+// Reusable oscillator class for DRY code
+class Oscillator {
+public:
+  void process(float pitch, float softSync, float hardSync, float pulseWidth, int waveType,
+               float sampleTime);
+  float getOutput() const {
+    return output;
+  }
 
 private:
-	float phase = 0.f;
-	float blinkPhase = 0.f;
+  float phase = 0.f;
+  float output = 0.f;
+
+  float generateSine(float ph);
+  float generateTriangle(float ph);
+  float generateSaw(float ph);
+  float generateSquare(float ph, float pw);
+};
+
+struct Testmodule : Module {
+  enum ParamIds {
+    PCOURSE_PARAM,
+    PFINE_PARAM,
+    PULSEWIDTH_PARAM,
+    WAVE_PARAM,
+    PCOURSE2_PARAM,
+    PFINE2_PARAM,
+    PULSEWIDTH2_PARAM,
+    WAVE2_PARAM,
+    NUM_PARAMS
+  };
+  enum InputIds { PITCH_INPUT, PITCH2_INPUT, WEAK_SYNC, STRONG_SYNC, NUM_INPUTS };
+  enum OutputIds { WAVE_OUT, WAVE2_OUT, NUM_OUTPUTS };
+  enum LightIds { BLINK_LIGHT, NUM_LIGHTS };
+  enum Waves { WAVE_TRI, WAVE_SAW, WAVE_SQ, WAVE_PWM };
+
+  Testmodule();
+  void process(const ProcessArgs &args) override;
+
+private:
+  Oscillator osc1, osc2;
+  float blinkPhase = 0.f;
 };
 
 struct TestmoduleWidget : ModuleWidget {
-	TestmoduleWidget(Testmodule* module);
-}; 
+  TestmoduleWidget(Testmodule *module);
+};
