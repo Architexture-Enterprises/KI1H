@@ -60,7 +60,7 @@ struct KI1H_LFO : Module {
   };
   enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, NUM_INPUTS };
   enum OutputIds { WAVE1_OUT, WAVE2_OUT, SWAVE_OUT, CLOCK_OUT, NUM_OUTPUTS };
-  
+
   KI1H_LFO();
   void process(const ProcessArgs &args) override;
 
@@ -148,12 +148,12 @@ void SampleAndHold::process(float pitch, float sampleRate, float sampleIn, int s
     output = 0.f;
   }
 
-  float clockOut = generateSquare(clockPhase);
+  clockOutput = generateSquare(clockPhase);
   // ============================================================================
   // SAMPLE ON TRIGGER RISING EDGE
   // ============================================================================
   // Use Schmitt trigger for robust edge detection with hysteresis
-  if (sampleTrigger.process(clockOut)) {
+  if (sampleTrigger.process(clockOutput)) {
     // Sample the current oscillator output value on rising edge
     sampledValue = output;
   }
@@ -222,11 +222,11 @@ KI1H_LFO::KI1H_LFO() {
   // ============================================================================
   // S&H - PARAMETER CONFIGURATION
   // ============================================================================
-  configParam(SRATE_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam(SRATE_PARAM, -10.f, -3.4f, -5.3f, "Sample Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
   auto sWaveParam =
       configSwitch(SWAVE_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sawtooth", "Ramp", "Triangle"});
   sWaveParam->snapEnabled = true;
-  configParam(SLAG_PARAM, 0.0f, 2.0f, 0.1f, "Lag", "s", 0.f, 1.f, 0.f);
+  configParam(SLAG_PARAM, 0.0f, 0.2f, 0.f, "Lag", "ms", 0.f, 1000.f, 0.f);
   configInput(SAMP_IN, "Ext. In");
   configOutput(SWAVE_OUT, "S&H Out");
   configOutput(CLOCK_OUT, "Clock Out");
@@ -280,6 +280,7 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   float sampleIn = inputs[SAMP_IN].getVoltage();
   SNH.process(pitch2, sRate, sampleIn, sWaveType, lagTime, args.sampleTime);
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
+  outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
 };
 
 KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
@@ -310,6 +311,16 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 110)), module, KI1H_LFO::CV2_INPUT));
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 110)), module, KI1H_LFO::WAVE2_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 110)), module, KI1H_LFO::WAVE2_OUT));
+
+  // ============================================================================
+  // LFO 2 - CONTROL KNOBS
+  // ============================================================================
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(50, 30)), module, KI1H_LFO::SRATE_PARAM));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(50, 50)), module, KI1H_LFO::SLAG_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(50, 70)), module, KI1H_LFO::SAMP_IN));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(50, 90)), module, KI1H_LFO::SWAVE_PARAM));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 90)), module, KI1H_LFO::SWAVE_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 30)), module, KI1H_LFO::CLOCK_OUT));
 }
 
 Model *modelKI1H_LFO = createModel<KI1H_LFO, KI1H_LFOWidget>("KI1H-LFO");
