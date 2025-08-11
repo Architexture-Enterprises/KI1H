@@ -27,8 +27,8 @@ protected: // Changed to protected so subclass can access
 // ============================================================================
 class SampleAndHold : public LFO {
 public:
-  void process(float pitch, float sampleRate, float sampleIn, int waveType, float lagTime,
-               float sampleTime);
+  void process(float pitch, float clockIn, float sampleRate, float sampleIn, int waveType,
+               float lagTime, float sampleTime);
   float getOutput() const override {
     return laggedOutput;
   };
@@ -58,7 +58,7 @@ struct KI1H_LFO : Module {
     SLAG_PARAM,
     NUM_PARAMS
   };
-  enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, NUM_INPUTS };
+  enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, CLOCK_IN, NUM_INPUTS };
   enum OutputIds { WAVE1_OUT, WAVE2_OUT, SWAVE_OUT, CLOCK_OUT, NUM_OUTPUTS };
 
   KI1H_LFO();
@@ -110,8 +110,8 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 // ============================================================================
 // SAMPLE AND HOLD PROCESS METHOD
 // ============================================================================
-void SampleAndHold::process(float pitch, float sampleRate, float sampleIn, int sWaveType,
-                            float lagTime, float sampleTime) {
+void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float sampleIn,
+                            int sWaveType, float lagTime, float sampleTime) {
 
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
@@ -148,7 +148,10 @@ void SampleAndHold::process(float pitch, float sampleRate, float sampleIn, int s
     output = 0.f;
   }
 
-  clockOutput = generateSquare(clockPhase);
+  if (sampleRate == -1)
+    clockOutput = clockIn;
+  else
+    clockOutput = generateSquare(clockPhase);
   // ============================================================================
   // SAMPLE ON TRIGGER RISING EDGE
   // ============================================================================
@@ -228,6 +231,7 @@ KI1H_LFO::KI1H_LFO() {
   sWaveParam->snapEnabled = true;
   configParam(SLAG_PARAM, 0.0f, 0.2f, 0.f, "Lag", "ms", 0.f, 1000.f, 0.f);
   configInput(SAMP_IN, "Ext. In");
+  configInput(CLOCK_IN, "Clock in");
   configOutput(SWAVE_OUT, "S&H Out");
   configOutput(CLOCK_OUT, "Clock Out");
 };
@@ -278,7 +282,11 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // 3. Applies exponential lag with tau = lagTime / 4.605 for 99% settling
   // 4. Models analog RC circuit with JFET buffer behavior
   float sampleIn = inputs[SAMP_IN].getVoltage();
-  SNH.process(pitch2, sRate, sampleIn, sWaveType, lagTime, args.sampleTime);
+  float clockIn = inputs[CLOCK_IN].getVoltage();
+  if (inputs[CLOCK_IN].isConnected())
+    sRate = -1.f;
+
+  SNH.process(pitch2, clockIn, sRate, sampleIn, sWaveType, lagTime, args.sampleTime);
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
 };
@@ -313,12 +321,13 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 110)), module, KI1H_LFO::WAVE2_OUT));
 
   // ============================================================================
-  // LFO 2 - CONTROL KNOBS
+  // S&H - CONTROL KNOBS
   // ============================================================================
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(50, 30)), module, KI1H_LFO::SRATE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(50, 50)), module, KI1H_LFO::SLAG_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(50, 70)), module, KI1H_LFO::SAMP_IN));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(50, 90)), module, KI1H_LFO::SWAVE_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(50, 50)), module, KI1H_LFO::CLOCK_IN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(50, 70)), module, KI1H_LFO::SLAG_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(50, 90)), module, KI1H_LFO::SAMP_IN));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(50, 110)), module, KI1H_LFO::SWAVE_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 90)), module, KI1H_LFO::SWAVE_OUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 30)), module, KI1H_LFO::CLOCK_OUT));
 }
