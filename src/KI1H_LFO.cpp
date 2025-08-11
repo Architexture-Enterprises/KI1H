@@ -1,4 +1,5 @@
 #include "plugin.hpp"
+#include "system.hpp"
 
 // ============================================================================
 // LFO CLASS DEFINITION
@@ -6,33 +7,66 @@
 class LFO {
 public:
   void process(float pitch, int waveType, float sampletime);
-  float getOutput() const {
+  virtual float getOutput() const {
     return output;
   };
 
-private:
+protected: // Changed to protected so subclass can access
   float output = 0.f;
   float phase = 0.f;
 
+  float generateSine(float phase);
   float generateTriangle(float phase);
   float generateSaw(float phase);
   float generateSquare(float phase);
+  float generateRamp(float phase);
+};
+
+// ============================================================================
+// SAMPLE AND HOLD CLASS DEFINITION (Inherits from LFO)
+// ============================================================================
+class SampleAndHold : public LFO {
+public:
+  void process(float pitch, float sampleRate, float sampleIn, int waveType, float lagTime,
+               float sampleTime);
+  float getOutput() const override {
+    return laggedOutput;
+  };
+  float getClock() {
+    return clockOutput;
+  };
+
+private:
+  float clockPhase = 0.f;
+  float sampledValue = 0.f;
+  float laggedOutput = 0.f;
+  float clockOutput = 0.f;
+  dsp::SchmittTrigger sampleTrigger;
 };
 
 // ============================================================================
 // LFO MODULE DEFINITION
 // ============================================================================
 struct KI1H_LFO : Module {
-  enum ParamIds { RATE1_PARAM, WAVE1_PARAM, RATE2_PARAM, WAVE2_PARAM, NUM_PARAMS };
-  enum InputIds { CV1_INPUT, CV2_INPUT, NUM_INPUTS };
-  enum OutputIds { WAVE1_OUT, WAVE2_OUT, NUM_OUTPUTS };
-  enum Waves { WAVE_SQ, WAVE_SAW, WAVE_TRI };
-
+  enum ParamIds {
+    RATE1_PARAM,
+    WAVE1_PARAM,
+    RATE2_PARAM,
+    WAVE2_PARAM,
+    SRATE_PARAM,
+    SWAVE_PARAM,
+    SLAG_PARAM,
+    NUM_PARAMS
+  };
+  enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, NUM_INPUTS };
+  enum OutputIds { WAVE1_OUT, WAVE2_OUT, SWAVE_OUT, CLOCK_OUT, NUM_OUTPUTS };
+  
   KI1H_LFO();
   void process(const ProcessArgs &args) override;
 
 private:
   LFO lfo1, lfo2;
+  SampleAndHold SNH;
   float CV_SCALE = 5.f;
 };
 
@@ -60,7 +94,7 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   // Generate waveform based on type
   switch (waveType) {
   case 0:
-    output = generateTriangle(phase);
+    output = generateSine(phase);
     break;
   case 1:
     output = generateSaw(phase);
@@ -74,8 +108,74 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 };
 
 // ============================================================================
+// SAMPLE AND HOLD PROCESS METHOD
+// ============================================================================
+void SampleAndHold::process(float pitch, float sampleRate, float sampleIn, int sWaveType,
+                            float lagTime, float sampleTime) {
+
+  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+
+  float clockFreq = dsp::FREQ_C4 * std::pow(2.f, sampleRate);
+  // ============================================================================
+  // PHASE ACCUMULATION
+  // ============================================================================
+  phase += freq * sampleTime;
+  if (phase >= 1.f)
+    phase -= 1.f;
+
+  clockPhase += clockFreq * sampleTime;
+  if (clockPhase >= 1.f)
+    clockPhase -= 1.f;
+
+  // ============================================================================
+  // S&H SPECIFIC WAVEFORM GENERATION
+  // ============================================================================
+  // Generate S&H waveforms (different from regular LFO waveforms)
+  switch (sWaveType) {
+  case 0:
+    output = generateSaw(phase);
+    break;
+  case 1:
+    output = generateRamp(phase);
+    break;
+  case 2:
+    output = generateTriangle(phase);
+    break;
+  case 4:
+    output = sampleIn / 5.f; // Raw phase output
+    break;
+  default:
+    output = 0.f;
+  }
+
+  float clockOut = generateSquare(clockPhase);
+  // ============================================================================
+  // SAMPLE ON TRIGGER RISING EDGE
+  // ============================================================================
+  // Use Schmitt trigger for robust edge detection with hysteresis
+  if (sampleTrigger.process(clockOut)) {
+    // Sample the current oscillator output value on rising edge
+    sampledValue = output;
+  }
+
+  // ============================================================================
+  // APPLY EXPONENTIAL LAG TO SAMPLED VALUE
+  // ============================================================================
+  // Calculate time constant for 99% settling in lagTime
+  float timeConstant = lagTime / 4.605f;
+  float alpha = 1.0f - exp(-sampleTime / timeConstant);
+
+  // Apply lag filtering to the sampled value
+  laggedOutput = alpha * sampledValue + (1.0f - alpha) * laggedOutput;
+};
+
+// ============================================================================
 // LFO CLASS - WAVEFORM GENERATORS
 // ============================================================================
+float LFO::generateSine(float ph) {
+  return std::sin(2.f * M_PI * ph);
+}
+
 float LFO::generateTriangle(float ph) {
   if (ph < 0.5f)
     return ph * 4.f - 1.f; // Rising: 0→0.5 becomes -1→+1
@@ -85,6 +185,10 @@ float LFO::generateTriangle(float ph) {
 
 float LFO::generateSaw(float ph) {
   return ph * -2.f + 1.f; // Maps 0→1 phase to -1→+1
+}
+
+float LFO::generateRamp(float ph) {
+  return ph * 2.f - 1.f;
 }
 
 float LFO::generateSquare(float ph) {
@@ -102,8 +206,7 @@ KI1H_LFO::KI1H_LFO() {
   // ============================================================================
   configParam(RATE1_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
   configInput(CV1_INPUT, "Rate");
-  auto waveParam =
-      configSwitch(WAVE1_PARAM, 0.f, 2.f, 0.f, "Wave", {"Triangle", "Sawtooth", "Pulse"});
+  auto waveParam = configSwitch(WAVE1_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sine", "Sawtooth", "Pulse"});
   waveParam->snapEnabled = true;
   configOutput(WAVE1_OUT, "LFO1 Out");
 
@@ -112,10 +215,21 @@ KI1H_LFO::KI1H_LFO() {
   // ============================================================================
   configParam(RATE2_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
   configInput(CV2_INPUT, "Rate");
-  auto wave2Param =
-      configSwitch(WAVE2_PARAM, 0.f, 2.f, 0.f, "Wave", {"Triangle", "Sawtooth", "Pulse"});
+  auto wave2Param = configSwitch(WAVE2_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sine", "Sawtooth", "Pulse"});
   wave2Param->snapEnabled = true;
   configOutput(WAVE2_OUT, "LFO2 Out");
+
+  // ============================================================================
+  // S&H - PARAMETER CONFIGURATION
+  // ============================================================================
+  configParam(SRATE_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
+  auto sWaveParam =
+      configSwitch(SWAVE_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sawtooth", "Ramp", "Triangle"});
+  sWaveParam->snapEnabled = true;
+  configParam(SLAG_PARAM, 0.0f, 2.0f, 0.1f, "Lag", "s", 0.f, 1.f, 0.f);
+  configInput(SAMP_IN, "Ext. In");
+  configOutput(SWAVE_OUT, "S&H Out");
+  configOutput(CLOCK_OUT, "Clock Out");
 };
 
 void KI1H_LFO::process(const ProcessArgs &args) {
@@ -144,6 +258,28 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // ============================================================================
   lfo2.process(pitch2, waveType2, args.sampleTime);
   outputs[WAVE2_OUT].setVoltage(CV_SCALE * lfo2.getOutput());
+
+  // ============================================================================
+  // S&H - PARAMETERS & PROCESSING
+  // ============================================================================
+  float sRate = params[SRATE_PARAM].getValue();
+  int sWaveType = (int)params[SWAVE_PARAM].getValue();
+  float lagTime = params[SLAG_PARAM].getValue();
+
+  // Ensure minimum lag time to prevent division by zero
+  lagTime = std::max(lagTime, 0.001f);
+
+  // ============================================================================
+  // SNH - PROCESS & OUTPUT
+  // ============================================================================
+  // Sample and Hold with Lag - Implementation details:
+  // 1. Uses LFO oscillator as trigger source
+  // 2. Samples on rising edge crossings (negative to positive)
+  // 3. Applies exponential lag with tau = lagTime / 4.605 for 99% settling
+  // 4. Models analog RC circuit with JFET buffer behavior
+  float sampleIn = inputs[SAMP_IN].getVoltage();
+  SNH.process(pitch2, sRate, sampleIn, sWaveType, lagTime, args.sampleTime);
+  outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
 };
 
 KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
