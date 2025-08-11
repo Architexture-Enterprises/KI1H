@@ -18,6 +18,12 @@
       "name": "KI1H-VCO",
       "description": "A VCO based on the Hun'ed VCO",
       "tags": ["VCO", "Analog", "Oscillator"]
+    },
+    {
+      "slug": "KI1H-LFO",
+      "name": "KI1H-LFO",
+      "description": "An LFO based on the Hun'ed LFO",
+      "tags": ["LFO", "Analog", "Modulation"]
     }
   ]
 }

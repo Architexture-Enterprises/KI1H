@@ -60,7 +60,7 @@ struct KI1H_LFO : Module {
   };
   enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, NUM_INPUTS };
   enum OutputIds { WAVE1_OUT, WAVE2_OUT, SWAVE_OUT, CLOCK_OUT, NUM_OUTPUTS };
-
+  
   KI1H_LFO();
   void process(const ProcessArgs &args) override;
 
