@@ -1,5 +1,3 @@
-#include "componentlibrary.hpp"
-#include "helpers.hpp"
 #include "plugin.hpp"
 
 // ============================================================================
@@ -95,11 +93,14 @@ float LFO::generateSquare(float ph) {
 
 KI1H_LFO::KI1H_LFO() {
   // ============================================================================
+  // MODULE CONFIGURATION (CALL ONLY ONCE!)
+  // ============================================================================
+  config(KI1H_LFO::NUM_PARAMS, KI1H_LFO::NUM_INPUTS, KI1H_LFO::NUM_OUTPUTS);
+
+  // ============================================================================
   // LFO 1 - PARAMETER CONFIGURATION
   // ============================================================================
-
-  config(KI1H_LFO::NUM_PARAMS, KI1H_LFO::NUM_INPUTS, KI1H_LFO::NUM_OUTPUTS);
-  configParam(RATE1_PARAM, -6.f, -4.6f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam(RATE1_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
   configInput(CV1_INPUT, "Rate");
   auto waveParam =
       configSwitch(WAVE1_PARAM, 0.f, 2.f, 0.f, "Wave", {"Triangle", "Sawtooth", "Pulse"});
@@ -109,9 +110,7 @@ KI1H_LFO::KI1H_LFO() {
   // ============================================================================
   // LFO 2 - PARAMETER CONFIGURATION
   // ============================================================================
-
-  config(KI1H_LFO::NUM_PARAMS, KI1H_LFO::NUM_INPUTS, KI1H_LFO::NUM_OUTPUTS);
-  configParam(RATE2_PARAM, -6.f, -4.6f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam(RATE2_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
   configInput(CV2_INPUT, "Rate");
   auto wave2Param =
       configSwitch(WAVE2_PARAM, 0.f, 2.f, 0.f, "Wave", {"Triangle", "Sawtooth", "Pulse"});
@@ -149,7 +148,7 @@ void KI1H_LFO::process(const ProcessArgs &args) {
 
 KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   setModule(module);
-  setPanel(createPanel(asset::plugin(pluginInstance, "res/KI1H-VCO.svg")));
+  setPanel(createPanel(asset::plugin(pluginInstance, "res/KI1H-LFO.svg")));
 
   // ============================================================================
   // PANEL SCREWS
@@ -171,10 +170,10 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // LFO 2 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 30)), module, KI1H_LFO::RATE2_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 50)), module, KI1H_LFO::CV2_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 50)), module, KI1H_LFO::WAVE2_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 50)), module, KI1H_LFO::WAVE2_OUT));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 90)), module, KI1H_LFO::RATE2_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 110)), module, KI1H_LFO::CV2_INPUT));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 110)), module, KI1H_LFO::WAVE2_PARAM));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 110)), module, KI1H_LFO::WAVE2_OUT));
 }
 
 Model *modelKI1H_LFO = createModel<KI1H_LFO, KI1H_LFOWidget>("KI1H-LFO");

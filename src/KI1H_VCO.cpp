@@ -2,12 +2,6 @@
 // INCLUDES & GLOBAL VARIABLES
 // ============================================================================
 #include "plugin.hpp"
-#include "componentlibrary.hpp"
-#include "dsp/common.hpp"
-#include "dsp/digital.hpp"
-#include "helpers.hpp"
-#include "window/Svg.hpp"
-#include <cstddef>
 
 dsp::SchmittTrigger syncTrigger;
 
