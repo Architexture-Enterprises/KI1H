@@ -18,6 +18,32 @@
       "-mmacosx-version-min=10.9",
       "-c",
       "-o",
+      "build/src/KI1H_LFO.cpp.o",
+      "src/KI1H_LFO.cpp"
+    ],
+    "directory": "/Users/waldnzwrld/Code/KI1H",
+    "file": "/Users/waldnzwrld/Code/KI1H/src/KI1H_LFO.cpp",
+    "output": "/Users/waldnzwrld/Code/KI1H/build/src/KI1H_LFO.cpp.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/c++",
+      "-std=c++11",
+      "-stdlib=libc++",
+      "-fPIC",
+      "-I/Users/waldnzwrld/Code/Rack-SDK/include",
+      "-I/Users/waldnzwrld/Code/Rack-SDK/dep/include",
+      "-g",
+      "-O3",
+      "-funsafe-math-optimizations",
+      "-fno-omit-frame-pointer",
+      "-Wall",
+      "-Wextra",
+      "-Wno-unused-parameter",
+      "-march=armv8-a+fp+simd",
+      "-mmacosx-version-min=10.9",
+      "-c",
+      "-o",
       "build/src/KI1H_VCO.cpp.o",
       "src/KI1H_VCO.cpp"
     ],
