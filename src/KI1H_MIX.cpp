@@ -25,15 +25,15 @@ private:
 // MIX MODULE DEFINITION
 // ============================================================================
 struct KI1H_MIX : Module {
-  enum PARAM_IDS { ATT1, ATT2, ATT3, ATT4, ATT5, ATT6, NUM_PARAMS };
-  enum INPUT_IDS { CV1, CV2, CV3, CV4, CV5, CV6, IN1, IN2, IN3, IN4, IN5, IN6, NUM_INPUTS };
-  enum OUTPUT_IDS { OUT1, OUT2, OUT3, OUT4, OUT5, OUT6, NUM_OUTPUTS };
+  enum PARAM_IDS { ATT1, ATT2, ATT3, ATT4, ATT5, NUM_PARAMS };
+  enum INPUT_IDS { CV1, CV2, CV3, CV4, CV5, IN1, IN2, IN3, IN4, IN5, NUM_INPUTS };
+  enum OUTPUT_IDS { OUT1, OUT2, OUT3, OUT4, OUT5, NUM_OUTPUTS };
 
   KI1H_MIX();
   void process(const ProcessArgs &args) override;
 
 private:
-  Channel channels[6];
+  Channel channels[5];
   float CV_SCALE = 5.f;
 };
 
@@ -45,7 +45,7 @@ struct KI1H_MIXWidget : ModuleWidget {
 };
 
 // ============================================================================
-// Channel PROCESS METHOD
+// CHANNEL PROCESS METHOD
 // ============================================================================
 
 void Channel::process(float input, float cvIn) {
@@ -62,13 +62,13 @@ void Channel::process(float input, float cvIn) {
 }
 
 // ============================================================================
-// MODULE CONFIGURATION (CALL ONLY ONCE!)
+// MODULE CONFIGURATION
 // ============================================================================
 KI1H_MIX::KI1H_MIX() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS);
 
   // Configure parameters for all 6 channels
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 5; i++) {
     configParam(ATT1 + i, -1.2f, 1.2f, 0.f, "Ch" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
   }
 };
@@ -78,7 +78,7 @@ KI1H_MIX::KI1H_MIX() {
 
 void KI1H_MIX::process(const ProcessArgs &args) {
   // Process all 6 channels
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 5; i++) {
     // Get input signal and CV
     float input = inputs[IN1 + i].getVoltage();
     float cv = 1;
@@ -110,7 +110,7 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
       Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
   // ============================================================================
-  // MIX 1 - CONTROL KNOBS
+  // VCA - CONTROL KNOBS
   // ============================================================================
   int x = 15;
   for (int i = 0; i < 5; i++) {
