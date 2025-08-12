@@ -17,13 +17,31 @@
       "slug": "KI1H-VCO",
       "name": "KI1H-VCO",
       "description": "A VCO based on the Hun'ed VCO",
-      "tags": ["VCO", "Analog", "Oscillator"]
+      "tags": [
+        "VCO",
+        "Analog",
+        "Oscillator"
+      ]
     },
     {
       "slug": "KI1H-LFO",
       "name": "KI1H-LFO",
       "description": "An LFO based on the Hun'ed LFO",
-      "tags": ["LFO", "Analog", "Modulation"]
+      "tags": [
+        "LFO",
+        "Analog",
+        "Modulation"
+      ]
+    },
+    {
+      "slug": "KI1H-MIX",
+      "name": "KI1H-MIX",
+      "description": "A Mixer based on the Hun'ed mixer",
+      "tags": [
+        "mixer",
+        "Analog",
+        "VCA"
+      ]
     }
   ]
 }
