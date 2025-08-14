@@ -1,5 +1,4 @@
 #include "plugin.hpp"
-#include "system.hpp"
 
 // ============================================================================
 // LFO CLASS DEFINITION
