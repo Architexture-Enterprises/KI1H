@@ -8,6 +8,9 @@
 // UTILITY FUNCTIONS
 // ============================================================================
 
+float calcFreq(float min, float max) {
+  return max / min;
+};
 // class EfficientTransistorLadder {
 //   private:
 //       float stages[12];
@@ -207,6 +210,8 @@ protected:
 class LPFilter : public Filter {
 public:
   void process(float input, float cutoff, float resonance, float drive);
+  float minFreq = 20.f;
+  float maxFreq = 22000.f;
 
 private:
   float stages[12];
@@ -227,6 +232,8 @@ private:
 class HPFilter : public Filter {
 public:
   void process(float input, float cutoff, float sampletime);
+  float minFreq = 30.f;
+  float maxFreq = 10000.f;
 
 private:
   float prev_input = 1.f;
@@ -283,6 +290,25 @@ struct KI1H_FILTERWidget : ModuleWidget {
 // ============================================================================
 // PROCESS METHOD
 // ============================================================================
+void LPFilter::process(float input, float cutoff, float resonance, float sampletime) {
+  // Pre-calculate coefficient once per sample
+  cutoff_coeff = 1.0f - exp(-2.0f * M_PI * cutoff * sampletime);
+
+  // Single feedback calculation
+  float feedback = stages[11] * resonance;
+  float signal = input - feedback;
+
+  // Shared saturation for "transistor warmth"
+  // signal = tanh(drive * signal);
+  for (int i = 0; i < 12; i++) {
+    float x = signal;
+    if (i > 0)
+      x = stages[i - 1];
+    // 12 simple one-poles (unrolled for efficiency)
+    stages[i] += cutoff_coeff * (x - stages[i]);
+  }
+  output = stages[11];
+}
 
 void HPFilter::process(float input, float cutoff, float sampletime) {
 
@@ -307,8 +333,18 @@ void HPFilter::process(float input, float cutoff, float sampletime) {
 // ============================================================================
 KI1H_FILTER::KI1H_FILTER() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS);
+  configParam(KI1H_FILTER::LPFreq, KI1H_FILTER::lpfilter.minFreq, KI1H_FILTER::lpfilter.maxFreq,
+              0.1f, "LP Freq", " Hz",
+              calcFreq(KI1H_FILTER::lpfilter.minFreq, KI1H_FILTER::lpfilter.maxFreq), 1.f, 0.f);
+  configParam(KI1H_FILTER::LPRes, 0.f, 1.f, 0.f, "LP resonance", " %", 0.f, 1.f, 0.f);
+  configInput(KI1H_FILTER::LPIN, "LP In");
+  configOutput(KI1H_FILTER::LPOUT, "LP Out");
 
-  configParam(KI1H_FILTER::HPFreq, 30.f, 10000.f, 1000.f);
+  configParam(KI1H_FILTER::HPFreq, KI1H_FILTER::hpfilter.minFreq, KI1H_FILTER::hpfilter.maxFreq,
+              1.f, "HP Freq", " Hz",
+              calcFreq(KI1H_FILTER::hpfilter.minFreq, KI1H_FILTER::hpfilter.maxFreq), 1.f, 0.f);
+  configInput(KI1H_FILTER::HPIN, "HP In");
+  configOutput(KI1H_FILTER::HPOUT, "HP Out");
 };
 
 // ============================================================================
@@ -316,12 +352,17 @@ KI1H_FILTER::KI1H_FILTER() {
 // ============================================================================
 
 void KI1H_FILTER::process(const ProcessArgs &args) {
-  // float lpInput = inputs[LPIN].getVoltage();
-  // float lpFreq = params[LPFreq].getValue();
+  float lpInput = inputs[LPIN].getVoltage();
+  float lpRes = params[LPRes].getValue();
+  float lpFreq = params[LPFreq].getValue();
   float hpInput = inputs[HPIN].getVoltage();
   float hpFreq = params[HPFreq].getValue();
-
+  // float lpCutoff = calcFreq(lpfilter.minFreq, lpfilter.maxFreq, lpFreq);
+  // float hpCutoff = calcFreq(hpfilter.minFreq, hpfilter.maxFreq, hpFreq);
+  lpfilter.process(lpInput, lpFreq, lpRes, args.sampleTime);
   hpfilter.process(hpInput, hpFreq, args.sampleTime);
+
+  outputs[LPOUT].setVoltage(lpfilter.getOutput());
   outputs[HPOUT].setVoltage(hpfilter.getOutput());
 };
 
@@ -337,6 +378,14 @@ KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
   addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
   addChild(createWidget<ScrewBlack>(
       Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+
+  // ============================================================================
+  // LP SECTION
+  // ============================================================================
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(25, 30)), module, KI1H_FILTER::LPIN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(25, 45)), module, KI1H_FILTER::LPFreq));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(25, 60)), module, KI1H_FILTER::LPRes));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(25, 75)), module, KI1H_FILTER::LPOUT));
 
   // ============================================================================
   // HP SECTION
