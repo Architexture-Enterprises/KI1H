@@ -118,7 +118,13 @@ KI1H_MIX::KI1H_MIX() {
   for (int i = 0; i < 5; i++) {
     configParam(ATT1 + i, -1.2f, 1.2f, 0.f, "Ch" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
     configParam(PAN1 + i, 0.f, 1.f, 0.5f, "Pan" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
+    configInput(CV1 + i, "CV" + std::to_string(i + 1));
+    configInput(IN1 + i, "In" + std::to_string(i + 1));
+    configOutput(OUT1 + i, "Out" + std::to_string(i + 1));
   }
+  configOutput(ALL_OUT, "All");
+  configOutput(LOUT, "Odds");
+  configOutput(ROUT, "Evens");
 };
 
 // ============================================================================
