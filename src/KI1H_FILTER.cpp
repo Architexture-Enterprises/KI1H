@@ -8,92 +8,11 @@
 // UTILITY FUNCTIONS
 // ============================================================================
 
-float calcFreq(float min, float max) {
-  return max / min;
-}
-// class EfficientBandpass {
-//   private:
-//       // 6dB HP state
-//       float hp_prev_in, hp_prev_out;
-
-//       // 12dB LP biquad states
-//       float lp_x1, lp_x2, lp_y1, lp_y2;
-//       float lp_b0, lp_b1, lp_b2, lp_a1, lp_a2;
-
-//   public:
-//       void updateCoefficients(float hp_freq, float lp_freq, float q) {
-//           // Pre-calculate coefficients (call only when parameters change)
-//           hp_alpha = exp(-2.0f * M_PI * hp_freq / sampleRate);
-
-//           // Biquad LP coefficients
-//           float w = 2.0f * M_PI * lp_freq / sampleRate;
-//           float cos_w = cos(w);
-//           float sin_w = sin(w);
-//           float alpha = sin_w / (2.0f * q);
-
-//           float a0 = 1.0f + alpha;
-//           lp_b0 = (1.0f - cos_w) / (2.0f * a0);
-//           lp_b1 = (1.0f - cos_w) / a0;
-//           lp_b2 = lp_b0;
-//           lp_a1 = (-2.0f * cos_w) / a0;
-//           lp_a2 = (1.0f - alpha) / a0;
-//       }
-
-//       float process(float input) {
-//           // 6dB HP first
-//           float hp_out = hp_alpha * (hp_prev_out + input - hp_prev_in);
-//           hp_prev_in = input;
-//           hp_prev_out = hp_out;
-
-//           // 12dB LP second (biquad)
-//           float lp_out = lp_b0*hp_out + lp_b1*lp_x1 + lp_b2*lp_x2 - lp_a1*lp_y1 - lp_a2*lp_y2;
-
-//           // Update delays
-//           lp_x2 = lp_x1; lp_x1 = hp_out;
-//           lp_y2 = lp_y1; lp_y1 = lp_out;
-
-//           return lp_out;
-//       }
-//   };
-
-// class TwoPoleLP {
-//   private:
-//       float x1, x2, y1, y2;  // State variables
-//       float b0, b1, b2, a1, a2;  // Coefficients
-
-//   public:
-//       TwoPoleLP() : x1(0), x2(0), y1(0), y2(0) {}
-
-//       void setCoefficients(float frequency, float q, float sampleRate) {
-//           float w = 2.0f * M_PI * frequency / sampleRate;
-//           float cos_w = cos(w);
-//           float sin_w = sin(w);
-//           float alpha = sin_w / (2.0f * q);
-
-//           float a0 = 1.0f + alpha;
-//           b0 = (1.0f - cos_w) / (2.0f * a0);
-//           b1 = (1.0f - cos_w) / a0;
-//           b2 = b0;
-//           a1 = (-2.0f * cos_w) / a0;
-//           a2 = (1.0f - alpha) / a0;
-//       }
-
-//       float process(float input) {
-//           float output = b0*input + b1*x1 + b2*x2 - a1*y1 - a2*y2;
-
-//           x2 = x1; x1 = input;
-//           y2 = y1; y1 = output;
-
-//           return output;
-//       }
-//   };
-
-// Only recalculate when parameters actually change
-// if (freq != prev_freq || res != prev_res) {
-//   updateCoefficients(freq, res);
-//   prev_freq = freq; prev_res = res;
+// float cubic_clip(float x) {
+//     if (x > 1.0f) return 1.0f;
+//     if (x < -1.0f) return -1.0f;
+//     return x - (x*x*x)/3.0f;
 // }
-
 // float fast_tanh(float x) {
 //   float x2 = x * x;
 //   return x * (27.0f + x2) / (27.0f + 9.0f * x2);  // Rational approximation
@@ -266,8 +185,6 @@ void BPFilter::process(float input, float frequency, float width, float sampleti
   x1 = hp_out;
   y2 = y1;
   y1 = output;
-
-  //           return output;
 }
 
 // ============================================================================
@@ -276,26 +193,24 @@ void BPFilter::process(float input, float frequency, float width, float sampleti
 KI1H_FILTER::KI1H_FILTER() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS);
   configParam(KI1H_FILTER::LPFreq, KI1H_FILTER::lpfilter.minFreq, KI1H_FILTER::lpfilter.maxFreq,
-              0.1f, "LP Freq", " Hz",
-              calcFreq(KI1H_FILTER::lpfilter.minFreq, KI1H_FILTER::lpfilter.maxFreq), 1.f, 0.f);
-  configParam(KI1H_FILTER::LPRes, 0.f, 1.f, 0.f, "LP resonance", " %", 0.f, 1.f, 0.f);
+              0.1f, "LP Freq", " Hz", 0.f, 1.f, 0.f);
+  configParam(KI1H_FILTER::LPRes, 0.f, 1.666f, 0.f, "LP resonance", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::LPIN, "LP In");
   configOutput(KI1H_FILTER::LPOUT, "LP Out");
 
   configParam(KI1H_FILTER::BPFreq1, KI1H_FILTER::bpfilter1.minFreq, KI1H_FILTER::bpfilter1.maxFreq,
               0.1f, "BP1 Freq", " Hz", 0.f, 1.f, 0.f);
-  configParam(KI1H_FILTER::BPWidth1, 0.001f, 1.f, 0.f, "BP1 Width", " %", 0.f, 1.f, 0.f);
+  configParam(KI1H_FILTER::BPWidth1, 0.001f, 2.1f, 0.f, "BP1 Width", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::BP1IN, "BP1 In");
   configOutput(KI1H_FILTER::BPOUT1, "BP1 Out");
   configParam(KI1H_FILTER::BPFreq2, KI1H_FILTER::bpfilter2.minFreq, KI1H_FILTER::bpfilter2.maxFreq,
               0.1f, "BP2 Freq", " Hz", 0.f, 1.f, 0.f);
-  configParam(KI1H_FILTER::BPWidth2, 0.001f, 1.f, 0.f, "BP2 Width", " %", 0.f, 1.f, 0.f);
+  configParam(KI1H_FILTER::BPWidth2, 0.001f, 2.1f, 0.f, "BP2 Width", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::BP2IN, "BP2 In");
   configOutput(KI1H_FILTER::BPOUT2, "BP2 Out");
 
   configParam(KI1H_FILTER::HPFreq, KI1H_FILTER::hpfilter.minFreq, KI1H_FILTER::hpfilter.maxFreq,
-              1.f, "HP Freq", " Hz",
-              calcFreq(KI1H_FILTER::hpfilter.minFreq, KI1H_FILTER::hpfilter.maxFreq), 1.f, 0.f);
+              1.f, "HP Freq", " Hz", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::HPIN, "HP In");
   configOutput(KI1H_FILTER::HPOUT, "HP Out");
 };
@@ -312,15 +227,19 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
   float bp2Freq = params[BPFreq2].getValue();
   float bp2Width = params[BPWidth2].getValue();
   float bp1Freq = params[BPFreq1].getValue();
-  float bp1Input = inputs[BP2IN].getVoltage();
+  float bp1Input = inputs[BP1IN].getVoltage();
   float bp1Width = params[BPWidth1].getValue();
   float hpInput = inputs[HPIN].getVoltage();
   float hpFreq = params[HPFreq].getValue();
-  // float lpCutoff = calcFreq(lpfilter.minFreq, lpfilter.maxFreq, lpFreq);
-  // float hpCutoff = calcFreq(hpfilter.minFreq, hpfilter.maxFreq, hpFreq);
+
   lpfilter.process(lpInput, lpFreq, lpRes, args.sampleTime);
+  if (!outputs[LPOUT].isConnected() && !inputs[BP1IN].isConnected())
+    bp1Input = lpfilter.getOutput();
   bpfilter1.process(bp1Input, bp1Freq, bp1Width, args.sampleTime);
+
   bpfilter2.process(bp2Input, bp2Freq, bp2Width, args.sampleTime);
+  if (!outputs[BPOUT2].isConnected() && !inputs[HPIN].isConnected())
+    hpInput = bpfilter2.getOutput();
   hpfilter.process(hpInput, hpFreq, args.sampleTime);
 
   outputs[LPOUT].setVoltage(lpfilter.getOutput());
@@ -353,21 +272,21 @@ KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
   // ============================================================================
   // BP SECTION
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(40, 45)), module, KI1H_FILTER::BP1IN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(40, 30)), module, KI1H_FILTER::BPFreq1));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(55, 30)), module, KI1H_FILTER::BPWidth1));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(55, 45)), module, KI1H_FILTER::BPOUT1));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 80)), module, KI1H_FILTER::BP2IN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 65)), module, KI1H_FILTER::BPFreq2));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(25, 65)), module, KI1H_FILTER::BPWidth2));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(25, 80)), module, KI1H_FILTER::BPOUT2));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(55, 45)), module, KI1H_FILTER::BP1IN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(55, 30)), module, KI1H_FILTER::BPFreq1));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(70, 30)), module, KI1H_FILTER::BPWidth1));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 45)), module, KI1H_FILTER::BPOUT1));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 111)), module, KI1H_FILTER::BP2IN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 91)), module, KI1H_FILTER::BPFreq2));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(25, 91)), module, KI1H_FILTER::BPWidth2));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(25, 111)), module, KI1H_FILTER::BPOUT2));
 
   // ============================================================================
   // HP SECTION
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(55, 80)), module, KI1H_FILTER::HPIN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(55, 65)), module, KI1H_FILTER::HPFreq));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 80)), module, KI1H_FILTER::HPOUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(55, 111)), module, KI1H_FILTER::HPIN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(55, 91)), module, KI1H_FILTER::HPFreq));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 111)), module, KI1H_FILTER::HPOUT));
 };
 
 Model *modelKI1H_FILTER = createModel<KI1H_FILTER, KI1H_FILTERWidget>("KI1H-FILTER");
