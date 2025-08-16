@@ -10,3 +10,4 @@ extern Plugin *pluginInstance;
 extern Model *modelKI1H_VCO;
 extern Model *modelKI1H_LFO;
 extern Model *modelKI1H_MIX;
+extern Model *modelKI1H_FILTER;

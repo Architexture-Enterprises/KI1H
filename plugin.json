@@ -42,6 +42,16 @@
         "Analog",
         "VCA"
       ]
+    },
+    {
+      "slug": "KI1H-FILTER",
+      "name": "KI1H-FILTER",
+      "description": "A FILTER based on the Hun'ed mixer",
+      "tags": [
+        "filter",
+        "Analog",
+        "VCA"
+      ]
     }
   ]
 }
