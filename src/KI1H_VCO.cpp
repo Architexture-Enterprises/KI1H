@@ -124,15 +124,12 @@ void Oscillator::process(float pitch, float linFM, float softSync, float hardSyn
   // Generate waveform based on type
   switch (waveType) {
   case 0:
-    output = generateSine(phase);
-    break;
-  case 1:
     output = generateTriangle(phase);
     break;
-  case 2:
+  case 1:
     output = generateSaw(phase);
     break;
-  case 3:
+  case 2:
     output = generateSquare(phase, pulseWidth);
     break;
   default:
@@ -180,7 +177,7 @@ KI1H_VCO::KI1H_VCO() {
   configParam(PCOURSE_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
   configParam(PULSEWIDTH_PARAM, 0.1f, 0.9f, 0.5f, "Pulse Width", " %", 0.f, 100.f, 0.f);
   auto waveParam =
-      configSwitch(WAVE_PARAM, 0.f, 3.f, 0.f, "Wave", {"Sin", "Triangle", "Sawtooth", "Pulse"});
+      configSwitch(WAVE_PARAM, 0.f, 2.f, 0.f, "Wave", {"Triangle", "Sawtooth", "Pulse"});
   waveParam->snapEnabled = true;
 
   // ============================================================================
@@ -197,7 +194,7 @@ KI1H_VCO::KI1H_VCO() {
   configParam(PCOURSE2_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
   configParam(PULSEWIDTH2_PARAM, 0.1f, 0.9f, 0.5f, "Pulse Width", " %", 0.f, 100.f, 0.f);
   auto waveParam2 =
-      configSwitch(WAVE2_PARAM, 0.f, 3.f, 0.f, "Wave", {"Sin", "Triangle", "Sawtooth", "Pulse"});
+      configSwitch(WAVE2_PARAM, 0.f, 2.f, 0.f, "Wave", {"Triangle", "Sawtooth", "Pulse"});
   waveParam2->snapEnabled = true;
 
   // ============================================================================
