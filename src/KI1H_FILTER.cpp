@@ -287,40 +287,59 @@ KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
   // ============================================================================
   // LP SECTION
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(47, 30)), module, KI1H_FILTER::LPIN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(55, 40)), module, KI1H_FILTER::LPFreq));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(70, 40)), module, KI1H_FILTER::LPRes));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(62.5, 30)), module, KI1H_FILTER::LPOUT));
+  addInput(
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[0])), module, KI1H_FILTER::LPIN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[1])), module,
+                                               KI1H_FILTER::LPFreq));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
+                                               KI1H_FILTER::LPRes));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[0])), module,
+                                             KI1H_FILTER::LPOUT));
 
   // ============================================================================
   // BP SECTION
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(17.5, 30)), module, KI1H_FILTER::BP1IN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 40)), module, KI1H_FILTER::BPFreq1));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(25, 40)), module, KI1H_FILTER::BPWidth1));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(40, 40)), module, KI1H_FILTER::BPRes1));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(33, 30)), module, KI1H_FILTER::BPOUT1));
+  addInput(
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[0])), module, KI1H_FILTER::BP1IN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
+                                               KI1H_FILTER::BPFreq1));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
+                                               KI1H_FILTER::BPWidth1));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
+                                               KI1H_FILTER::BPRes1));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
+                                             KI1H_FILTER::BPOUT1));
 
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(47, 111)), module, KI1H_FILTER::BP2IN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(40, 101)), module, KI1H_FILTER::BPFreq2));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(55, 101)), module, KI1H_FILTER::BPWidth2));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(70, 101)), module, KI1H_FILTER::BPRes2));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(62.5, 111)), module, KI1H_FILTER::BPOUT2));
+  addInput(
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[5])), module, KI1H_FILTER::BP2IN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[4])), module,
+                                               KI1H_FILTER::BPFreq2));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
+                                               KI1H_FILTER::BPWidth2));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[4], ROWS[4])), module,
+                                               KI1H_FILTER::BPRes2));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
+                                             KI1H_FILTER::BPOUT2));
 
   // ============================================================================
   // HP SECTION
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(17.5, 111)), module, KI1H_FILTER::HPIN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 101)), module, KI1H_FILTER::HPFreq));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(33, 111)), module, KI1H_FILTER::HPOUT));
+  addInput(
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module, KI1H_FILTER::HPIN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+                                               KI1H_FILTER::HPFreq));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
+                                             KI1H_FILTER::HPOUT));
 
   // ============================================================================
   // JOINT CONTROLS
   // ============================================================================
-  addParam(
-      createParamCentered<RoundBigBlackKnob>(mm2px(Vec(40, 70)), module, KI1H_FILTER::BigKnob));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(40, 52.5)), module, KI1H_FILTER::Filt1Link));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(40, 87.5)), module, KI1H_FILTER::Filt2Link));
+  addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[3] - HALF_R)), module,
+                                                  KI1H_FILTER::BigKnob));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
+                                             KI1H_FILTER::Filt1Link));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
+                                             KI1H_FILTER::Filt2Link));
 };
 
 Model *modelKI1H_FILTER = createModel<KI1H_FILTER, KI1H_FILTERWidget>("KI1H-FILTER");

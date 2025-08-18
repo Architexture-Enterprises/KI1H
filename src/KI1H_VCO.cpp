@@ -15,10 +15,14 @@ public:
   float getOutput() const {
     return output;
   }
+  float getBlink() const {
+    return blinkPhase;
+  }
 
 private:
   float phase = 0.f;
   float output = 0.f;
+  float blinkPhase = 0.f;
 
   float generateSine(float ph);
   float generateTriangle(float ph);
@@ -63,7 +67,6 @@ struct KI1H_VCO : Module {
 
 private:
   Oscillator osc1, osc2;
-  float blinkPhase = 0.f;
   float CV_SCALE = 5.f;
   float PWM_OFFSET = 5.5f;
 };
@@ -83,6 +86,9 @@ void Oscillator::process(float pitch, float linFM, float softSync, float hardSyn
   // Calculate frequency from pitch (1V/octave)
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
+  blinkPhase += freq * sampleTime;
+  if (blinkPhase >= 1.f)
+    blinkPhase -= 1.f;
   // Apply linear FM directly to frequency
   freq += freq * linFM * 0.1f;
 
@@ -295,11 +301,8 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // STATUS LIGHT PROCESSING
   // ============================================================================
-  float freq1 = dsp::FREQ_C4 * std::pow(2.f, pitch1);
-  blinkPhase += freq1 * args.sampleTime;
-  if (blinkPhase >= 1.f)
-    blinkPhase -= 1.f;
-  lights[BLINK1_LIGHT].setBrightness(blinkPhase < 0.5f ? 1.f : 0.f);
+  lights[BLINK1_LIGHT].setBrightness(osc1.getBlink() < 0.5f ? 1.f : 0.f);
+  lights[BLINK2_LIGHT].setBrightness(osc2.getBlink() < 0.5f ? 1.f : 0.f);
 }
 
 KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
@@ -318,53 +321,70 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   // ============================================================================
   // OSCILLATOR 1 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 30)), module, KI1H_VCO::PFINE_PARAM));
-  addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(25, 30)), module, KI1H_VCO::PCOURSE_PARAM));
-  addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(40, 30)), module, KI1H_VCO::PULSEWIDTH_PARAM));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
+                                               KI1H_VCO::PFINE_PARAM));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
+                                               KI1H_VCO::PCOURSE_PARAM));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
+                                               KI1H_VCO::PULSEWIDTH_PARAM));
 
   // ============================================================================
-  // OSCILLATOR 1 - STATUS LIGHT
+  // OSCILLATORS - STATUS LIGHT
   // ============================================================================
-  addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(17.5, 40)), module,
-                                                      KI1H_VCO::BLINK1_LIGHT));
+  addChild(createLightCentered<MediumLight<RedLight>>(
+      mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[1] - HALF_R)), module, KI1H_VCO::BLINK1_LIGHT));
+  addChild(createLightCentered<MediumLight<RedLight>>(
+      mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[5] - HALF_R)), module, KI1H_VCO::BLINK2_LIGHT));
 
   // ============================================================================
   // OSCILLATOR 1 - INPUTS, CONTROLS & OUTPUT
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 50)), module, KI1H_VCO::PITCH_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 50)), module, KI1H_VCO::WAVE_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(40, 50)), module, KI1H_VCO::PW1_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 50)), module, KI1H_VCO::WAVE_OUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
+                                           KI1H_VCO::PITCH_INPUT));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
+                                             KI1H_VCO::WAVE_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
+                                           KI1H_VCO::PW1_INPUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
+                                             KI1H_VCO::WAVE_OUT));
 
   // ============================================================================
   // OSCILLATOR 2 - SYNC & FM CONTROLS
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 70)), module, KI1H_VCO::WEAK_SYNC));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 70)), module, KI1H_VCO::SYNC_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(40, 70)), module, KI1H_VCO::STRONG_SYNC));
-  addParam(
-      createParamCentered<BefacoSwitch>(mm2px(Vec(55, 70)), module, KI1H_VCO::FM_SWITCH_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
+                                           KI1H_VCO::WEAK_SYNC));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[3])), module,
+                                             KI1H_VCO::SYNC_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
+                                           KI1H_VCO::STRONG_SYNC));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3], ROWS[3])), module,
+                                             KI1H_VCO::FM_SWITCH_PARAM));
 
   // ============================================================================
   // OSCILLATOR 2 - CONTROL KNOBS & OUTPUT
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 91)), module, KI1H_VCO::PFINE2_PARAM));
-  addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(25, 91)), module, KI1H_VCO::PCOURSE2_PARAM));
-  addParam(
-      createParamCentered<RoundBlackKnob>(mm2px(Vec(40, 91)), module, KI1H_VCO::PULSEWIDTH2_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(55, 91)), module, KI1H_VCO::FM_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 91)), module, KI1H_VCO::WAVE2_OUT));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+                                               KI1H_VCO::PFINE2_PARAM));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[4])), module,
+                                               KI1H_VCO::PCOURSE2_PARAM));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
+                                               KI1H_VCO::PULSEWIDTH2_PARAM));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[4])), module,
+                                               KI1H_VCO::FM_PARAM));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[4])), module,
+                                             KI1H_VCO::WAVE2_OUT));
 
   // ============================================================================
   // OSCILLATOR 2 - INPUTS & WAVE CONTROL
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 111)), module, KI1H_VCO::PITCH2_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 111)), module, KI1H_VCO::WAVE2_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(40, 111)), module, KI1H_VCO::PW2_INPUT));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(55, 111)), module, KI1H_VCO::FM_INPUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
+                                           KI1H_VCO::PITCH2_INPUT));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
+                                             KI1H_VCO::WAVE2_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
+                                           KI1H_VCO::PW2_INPUT));
+  addInput(
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[5])), module, KI1H_VCO::FM_INPUT));
 }
 
 Model *modelKI1H_VCO = createModel<KI1H_VCO, KI1H_VCOWidget>("KI1H-VCO");

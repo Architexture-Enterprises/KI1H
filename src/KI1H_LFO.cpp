@@ -9,6 +9,9 @@ public:
   virtual float getOutput() const {
     return output;
   };
+  float getBlink() const {
+    return phase;
+  }
 
 protected: // Changed to protected so subclass can access
   float output = 0.f;
@@ -19,6 +22,7 @@ protected: // Changed to protected so subclass can access
   float generateSaw(float phase);
   float generateSquare(float phase);
   float generateRamp(float phase);
+  float generateNoise(float seed);
 };
 
 // ============================================================================
@@ -33,6 +37,9 @@ public:
   };
   float getClock() {
     return clockOutput;
+  };
+  float getBlink() const {
+    return clockPhase;
   };
 
 private:
@@ -59,6 +66,7 @@ struct KI1H_LFO : Module {
   };
   enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, CLOCK_IN, NUM_INPUTS };
   enum OutputIds { WAVE1_OUT, WAVE2_OUT, SWAVE_OUT, CLOCK_OUT, NUM_OUTPUTS };
+  enum LightIds { BLINK1_LIGHT, BLINK2_LIGHT, CLOCK_LIGHT, NUM_LIGHTS };
 
   KI1H_LFO();
   void process(const ProcessArgs &args) override;
@@ -197,11 +205,21 @@ float LFO::generateSquare(float ph) {
   return (ph > 0.5f) ? -1.f : 1.f;
 }
 
+float LFO::generateNoise(float seed) {
+  const float a = 1664525.0f;
+  const float c = 1013904223.0f;
+  const float m = 4294967296.0f;
+
+  seed = (a * seed + c) / m;
+
+  return fmod(seed, 1.f); // normalized to [0, 1]
+}
+
 KI1H_LFO::KI1H_LFO() {
   // ============================================================================
   // MODULE CONFIGURATION (CALL ONLY ONCE!)
   // ============================================================================
-  config(KI1H_LFO::NUM_PARAMS, KI1H_LFO::NUM_INPUTS, KI1H_LFO::NUM_OUTPUTS);
+  config(KI1H_LFO::NUM_PARAMS, KI1H_LFO::NUM_INPUTS, KI1H_LFO::NUM_OUTPUTS, KI1H_LFO::NUM_LIGHTS);
 
   // ============================================================================
   // LFO 1 - PARAMETER CONFIGURATION
@@ -288,6 +306,10 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   SNH.process(pitch2, clockIn, sRate, sampleIn, sWaveType, lagTime, args.sampleTime);
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
+
+  lights[BLINK1_LIGHT].setBrightness(lfo1.getBlink() < 0.5f ? 1.f : 0.f);
+  lights[BLINK2_LIGHT].setBrightness(lfo2.getBlink() < 0.5f ? 1.f : 0.f);
+  lights[CLOCK_LIGHT].setBrightness(SNH.getBlink() < 0.5f ? 1.f : 0.f);
 };
 
 KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
@@ -304,31 +326,56 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
       Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
   // ============================================================================
+  // BLINKEN LIGHTS
+  // ============================================================================
+  addChild(createLightCentered<MediumLight<RedLight>>(
+      mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[1] - HALF_R)), module, KI1H_LFO::BLINK1_LIGHT));
+  addChild(createLightCentered<MediumLight<RedLight>>(
+      mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[5] - HALF_R)), module, KI1H_LFO::BLINK2_LIGHT));
+  addChild(createLightCentered<MediumLight<RedLight>>(
+      mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[3] - HALF_R)), module, KI1H_LFO::CLOCK_LIGHT));
+
+  // ============================================================================
   // LFO 1 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 30)), module, KI1H_LFO::RATE1_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 50)), module, KI1H_LFO::CV1_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 50)), module, KI1H_LFO::WAVE1_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 50)), module, KI1H_LFO::WAVE1_OUT));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
+                                               KI1H_LFO::RATE1_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
+                                           KI1H_LFO::CV1_INPUT));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
+                                             KI1H_LFO::WAVE1_PARAM));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
+                                             KI1H_LFO::WAVE1_OUT));
 
   // ============================================================================
   // LFO 2 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10, 90)), module, KI1H_LFO::RATE2_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10, 110)), module, KI1H_LFO::CV2_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(25, 110)), module, KI1H_LFO::WAVE2_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 110)), module, KI1H_LFO::WAVE2_OUT));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+                                               KI1H_LFO::RATE2_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
+                                           KI1H_LFO::CV2_INPUT));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
+                                             KI1H_LFO::WAVE2_PARAM));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
+                                             KI1H_LFO::WAVE2_OUT));
 
   // ============================================================================
   // S&H - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(50, 30)), module, KI1H_LFO::SRATE_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(50, 50)), module, KI1H_LFO::CLOCK_IN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(50, 70)), module, KI1H_LFO::SLAG_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(50, 90)), module, KI1H_LFO::SAMP_IN));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(50, 110)), module, KI1H_LFO::SWAVE_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 90)), module, KI1H_LFO::SWAVE_OUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(70, 30)), module, KI1H_LFO::CLOCK_OUT));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
+                                               KI1H_LFO::SRATE_PARAM));
+  addInput(
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module, KI1H_LFO::CLOCK_IN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[2])), module,
+                                               KI1H_LFO::SLAG_PARAM));
+  addInput(
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[3])), module, KI1H_LFO::SAMP_IN));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
+                                             KI1H_LFO::SWAVE_PARAM));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[3])), module,
+                                             KI1H_LFO::SWAVE_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
+                                             KI1H_LFO::CLOCK_OUT));
 }
 
 Model *modelKI1H_LFO = createModel<KI1H_LFO, KI1H_LFOWidget>("KI1H-LFO");

@@ -180,19 +180,22 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
   // ============================================================================
   // VCA - CONTROL KNOBS
   // ============================================================================
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(17.5, 30)), module, KI1H_MIX::LOUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(40, 30)), module, KI1H_MIX::ALL_OUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(62.5, 30)), module, KI1H_MIX::ROUT));
-  int x = 15;
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[0])), module,
+                                             KI1H_MIX::LOUT));
+  addOutput(
+      createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[0])), module, KI1H_MIX::ALL_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
+                                             KI1H_MIX::ROUT));
+
   for (int i = 0; i < 5; i++) {
-    addOutput(
-        createOutputCentered<PJ301MPort>(mm2px(Vec(10 + (i * x), 40)), module, KI1H_MIX::OUT1 + i));
-    addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(10 + (i * x), 65)), module,
+    addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[1] - HALF_R)), module,
+                                               KI1H_MIX::OUT1 + i));
+    addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[i], ROWS[2])), module,
                                                  KI1H_MIX::ATT1 + i));
-    addInput(
-        createInputCentered<PJ301MPort>(mm2px(Vec(10 + (i * x), 90)), module, KI1H_MIX::CV1 + i));
-    addInput(
-        createInputCentered<PJ301MPort>(mm2px(Vec(10 + (i * x), 110)), module, KI1H_MIX::IN1 + i));
+    addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5] - HALF_R)), module,
+                                             KI1H_MIX::CV1 + i));
+    addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
+                                             KI1H_MIX::IN1 + i));
   };
 };
 
