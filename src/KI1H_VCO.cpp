@@ -18,11 +18,15 @@ public:
   float getBlink() const {
     return blinkPhase;
   }
+  float getSin() const {
+    return sin;
+  }
 
 private:
   float phase = 0.f;
   float output = 0.f;
   float blinkPhase = 0.f;
+  float sin = 0.f;
 
   float generateSine(float ph);
   float generateTriangle(float ph);
@@ -124,6 +128,7 @@ void Oscillator::process(float pitch, float linFM, float softSync, float hardSyn
   if (phase >= 1.f)
     phase -= 1.f;
 
+  sin = generateSine(phase);
   // ============================================================================
   // WAVEFORM GENERATION
   // ============================================================================
@@ -257,7 +262,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   if (inputs[FM_INPUT].isConnected())
     fmVal = inputs[FM_INPUT].getVoltage();
   else
-    fmVal = osc1.getOutput() * CV_SCALE;
+    fmVal = osc1.getSin() * CV_SCALE;
 
   // FM mode switching: 0=off, 1=linear, 2=exponential
   float linFM = 0.f;
