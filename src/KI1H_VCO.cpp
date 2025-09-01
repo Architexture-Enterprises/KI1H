@@ -10,8 +10,7 @@ dsp::SchmittTrigger syncTrigger;
 // ============================================================================
 class Oscillator {
 public:
-  void process(float pitch, float linFM, float softSync, float hardSync, float pulseWidth,
-               int waveType, float sampleTime);
+  void process(float pitch, float linFM, float pulseWidth, int waveType, float sampleTime);
   float getOutput() const {
     return output;
   }
@@ -32,6 +31,31 @@ private:
   float generateTriangle(float ph);
   float generateSaw(float ph);
   float generateSquare(float ph, float pw);
+};
+
+class ShaperOscillator {
+public:
+  void process(float pitch, float linFM, float softSync, float hardSync, float pulseWidth,
+               int waveType, float sampleTime);
+  float getOutput() const {
+    return output;
+  }
+  float getBlink() const {
+    return blinkPhase;
+  }
+  float getSin() const {
+    return sin;
+  }
+
+private:
+  float phase = 0.f;
+  float output = 0.f;
+  float blinkPhase = 0.f;
+  float sin = 0.f;
+
+  float generateSaw(float ph);
+  float generateSquare(float ph, float pw);
+  float generateSine(float ph);
 };
 
 // ============================================================================
@@ -70,7 +94,8 @@ struct KI1H_VCO : Module {
   void process(const ProcessArgs &args) override;
 
 private:
-  Oscillator osc1, osc2;
+  Oscillator osc1;
+  ShaperOscillator osc2;
   float CV_SCALE = 5.f;
   float PWM_OFFSET = 5.5f;
 };
@@ -85,8 +110,8 @@ struct KI1H_VCOWidget : ModuleWidget {
 // ============================================================================
 // OSCILLATOR CLASS - MAIN PROCESS FUNCTION
 // ============================================================================
-void Oscillator::process(float pitch, float linFM, float softSync, float hardSync, float pulseWidth,
-                         int waveType, float sampleTime) {
+void Oscillator::process(float pitch, float linFM, float pulseWidth, int waveType,
+                         float sampleTime) {
   // Calculate frequency from pitch (1V/octave)
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
@@ -96,6 +121,43 @@ void Oscillator::process(float pitch, float linFM, float softSync, float hardSyn
   // Apply linear FM directly to frequency
   freq += freq * linFM * 0.1f;
 
+  // ============================================================================
+  // PHASE ACCUMULATION
+  // ============================================================================
+  // Normal phase accumulation
+  phase += freq * sampleTime;
+  if (phase >= 1.f)
+    phase -= 1.f;
+
+  sin = generateSine(phase);
+  // ============================================================================
+  // WAVEFORM GENERATION
+  // ============================================================================
+  // Generate waveform based on type
+  switch (waveType) {
+  case 0:
+    output = generateTriangle(phase);
+    break;
+  case 1:
+    output = generateSaw(phase);
+    break;
+  case 2:
+    output = generateSquare(phase, pulseWidth);
+    break;
+  default:
+    output = 0.f;
+  }
+}
+
+void ShaperOscillator::process(float pitch, float linFM, float softSync, float hardSync,
+                               float pulseWidth, int waveType, float sampleTime) {
+  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+
+  blinkPhase += freq * sampleTime;
+  if (blinkPhase >= 1.f)
+    blinkPhase -= 1.f;
+  // Apply linear FM directly to frequency
+  freq += freq * linFM * 0.1f;
   // ============================================================================
   // SYNC PROCESSING
   // ============================================================================
@@ -135,19 +197,15 @@ void Oscillator::process(float pitch, float linFM, float softSync, float hardSyn
   // Generate waveform based on type
   switch (waveType) {
   case 0:
-    output = generateTriangle(phase);
-    break;
-  case 1:
     output = generateSaw(phase);
     break;
-  case 2:
+  case 1:
     output = generateSquare(phase, pulseWidth);
     break;
   default:
     output = 0.f;
   }
 }
-
 // ============================================================================
 // OSCILLATOR CLASS - WAVEFORM GENERATORS
 // ============================================================================
@@ -204,8 +262,7 @@ KI1H_VCO::KI1H_VCO() {
   configParam(PFINE2_PARAM, -0.5f, 0.5f, 0.f, "Detune", " cents", 0.f, 100.f, 0.f);
   configParam(PCOURSE2_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
   configParam(PULSEWIDTH2_PARAM, 0.1f, 0.9f, 0.5f, "Pulse Width", " %", 0.f, 100.f, 0.f);
-  auto waveParam2 =
-      configSwitch(WAVE2_PARAM, 0.f, 2.f, 0.f, "Wave", {"Triangle", "Sawtooth", "Pulse"});
+  auto waveParam2 = configSwitch(WAVE2_PARAM, 0.f, 1.f, 0.f, "Wave", {"Sin-Saw", "Pulse"});
   waveParam2->snapEnabled = true;
 
   // ============================================================================
@@ -243,7 +300,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 1 - PROCESS & OUTPUT
   // ============================================================================
-  osc1.process(pitch1, 0.f, 0.f, 0.f, pulseWidth1 + pwm1, waveType1, args.sampleTime);
+  osc1.process(pitch1, 0.f, pulseWidth1 + pwm1, waveType1, args.sampleTime);
   outputs[WAVE_OUT].setVoltage(CV_SCALE * osc1.getOutput());
 
   // ============================================================================
