@@ -20,17 +20,23 @@ public:
   float getSin() const {
     return sin;
   }
+  float getSub() const {
+    return sub;
+  }
 
 private:
   float phase = 0.f;
   float output = 0.f;
   float blinkPhase = 0.f;
+  float subPhase = 0.f;
   float sin = 0.f;
+  float sub = 0.f;
 
   float generateSine(float ph);
   float generateTriangle(float ph);
   float generateSaw(float ph);
   float generateSquare(float ph, float pw);
+  float generateSub(float ph);
 };
 
 class ShaperOscillator {
@@ -86,7 +92,7 @@ struct KI1H_VCO : Module {
     STRONG_SYNC,
     NUM_INPUTS
   };
-  enum OutputIds { WAVE_OUT, WAVE2_OUT, NUM_OUTPUTS };
+  enum OutputIds { WAVE_OUT, WAVE2_OUT, SUB_OUT, NUM_OUTPUTS };
   enum LightIds { BLINK1_LIGHT, BLINK2_LIGHT, NUM_LIGHTS };
   enum Waves { WAVE_TRI, WAVE_SAW, WAVE_SQ, WAVE_PWM };
 
@@ -115,6 +121,8 @@ void Oscillator::process(float pitch, float linFM, float pulseWidth, int waveTyp
   // Calculate frequency from pitch (1V/octave)
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
+  float subFreq = freq / 2.f;
+
   blinkPhase += freq * sampleTime;
   if (blinkPhase >= 1.f)
     blinkPhase -= 1.f;
@@ -130,6 +138,13 @@ void Oscillator::process(float pitch, float linFM, float pulseWidth, int waveTyp
     phase -= 1.f;
 
   sin = generateSine(phase);
+
+  subPhase += subFreq * sampleTime;
+  if (subPhase >= 1.f)
+    subPhase -= 1.f;
+
+  sub = generateSub(subPhase);
+
   // ============================================================================
   // WAVEFORM GENERATION
   // ============================================================================
@@ -233,6 +248,10 @@ float Oscillator::generateSquare(float ph, float pw) {
   return (ph > pw) ? -1.f : 1.f;
 }
 
+float Oscillator::generateSub(float ph) {
+  return (ph > 0.5f) ? -1.f : 1.f;
+}
+
 float ShaperOscillator::generateShapedWave(float ph, float shape) {
   // Start with saw core
   float saw = ph * 2.f - 1.f; // -1 to +1 sawtooth
@@ -294,6 +313,7 @@ KI1H_VCO::KI1H_VCO() {
   configInput(PITCH_INPUT, "1V/oct pitch");
   configInput(PW1_INPUT, "Pulsewidth");
   configOutput(WAVE_OUT, "Waveform");
+  configOutput(SUB_OUT, "Sub");
 
   // ============================================================================
   // OSCILLATOR 2 - PARAMETER CONFIGURATION
@@ -341,6 +361,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   osc1.process(pitch1, 0.f, pulseWidth1 + pwm1, waveType1, args.sampleTime);
   outputs[WAVE_OUT].setVoltage(CV_SCALE * osc1.getOutput());
+  outputs[SUB_OUT].setVoltage(CV_SCALE * osc1.getSub());
 
   // ============================================================================
   // OSCILLATOR 2 - PITCH & SYNC SETUP
@@ -446,8 +467,10 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
                                              KI1H_VCO::WAVE_PARAM));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                            KI1H_VCO::PW1_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[0])), module,
                                              KI1H_VCO::WAVE_OUT));
+  addOutput(
+      createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module, KI1H_VCO::SUB_OUT));
 
   // ============================================================================
   // OSCILLATOR 2 - SYNC & FM CONTROLS
