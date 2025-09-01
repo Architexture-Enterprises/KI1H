@@ -262,7 +262,7 @@ float ShaperOscillator::generateShapedWave(float ph, float shape) {
     result += amplitude * harmonicGain * std::sin(2.f * M_PI * ph * h);
   }
 
-  return result * 0.5f; // Scale appropriately
+  return result;
 }
 
 // ============================================================================
