@@ -35,8 +35,8 @@ private:
 
 class ShaperOscillator {
 public:
-  void process(float pitch, float linFM, float softSync, float hardSync, float pulseWidth,
-               int waveType, float sampleTime);
+  void process(float pitch, float linFM, float softSync, float hardSync, float shape, int waveType,
+               float sampleTime);
   float getOutput() const {
     return output;
   }
@@ -53,8 +53,8 @@ private:
   float blinkPhase = 0.f;
   float sin = 0.f;
 
-  float generateSaw(float ph);
-  float generateSquare(float ph, float pw);
+  float generateShapedWave(float ph, float shape);
+  float generateSquare(float ph, float shape);
   float generateSine(float ph);
 };
 
@@ -72,7 +72,7 @@ struct KI1H_VCO : Module {
     FM_SWITCH_PARAM,
     PCOURSE2_PARAM,
     PFINE2_PARAM,
-    PULSEWIDTH2_PARAM,
+    SHAPE_PARAM,
     WAVE2_PARAM,
     NUM_PARAMS
   };
@@ -80,7 +80,7 @@ struct KI1H_VCO : Module {
     PITCH_INPUT,
     PITCH2_INPUT,
     PW1_INPUT,
-    PW2_INPUT,
+    SHAPE_INPUT,
     FM_INPUT,
     WEAK_SYNC,
     STRONG_SYNC,
@@ -150,7 +150,7 @@ void Oscillator::process(float pitch, float linFM, float pulseWidth, int waveTyp
 }
 
 void ShaperOscillator::process(float pitch, float linFM, float softSync, float hardSync,
-                               float pulseWidth, int waveType, float sampleTime) {
+                               float shape, int waveType, float sampleTime) {
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
   blinkPhase += freq * sampleTime;
@@ -197,10 +197,10 @@ void ShaperOscillator::process(float pitch, float linFM, float softSync, float h
   // Generate waveform based on type
   switch (waveType) {
   case 0:
-    output = generateSaw(phase);
+    output = generateShapedWave(phase, shape);
     break;
   case 1:
-    output = generateSquare(phase, pulseWidth);
+    output = generateSquare(phase, shape);
     break;
   default:
     output = 0.f;
@@ -233,6 +233,45 @@ float Oscillator::generateSquare(float ph, float pw) {
   return (ph > pw) ? -1.f : 1.f;
 }
 
+float ShaperOscillator::generateShapedWave(float ph, float shape) {
+  // Start with saw core
+  float saw = ph * 2.f - 1.f; // -1 to +1 sawtooth
+                              //
+  float harmonicReduction = std::abs(1.f - shape);
+
+  // Apply harmonic reduction using a simple low-pass-like formula
+  // harmonicReduction: 0.0 = full saw, 1.0 = approaching sine
+
+  if (harmonicReduction < 0.01f) {
+    return saw; // Pure sawtooth
+  }
+
+  // Method 1: Fourier series reduction
+  float result = 0.f;
+  int maxHarmonics = (int)(8.f * (1.f - harmonicReduction)) + 1;
+
+  for (int h = 1; h <= maxHarmonics; h++) {
+    float amplitude = 1.f / h; // Sawtooth harmonic series
+    float harmonicGain = std::pow(1.f - harmonicReduction, h - 1);
+    result += amplitude * harmonicGain * std::sin(2.f * M_PI * ph * h);
+  }
+
+  return result * 0.5f; // Scale appropriately
+}
+
+float ShaperOscillator::generateSquare(float ph, float shape) {
+  // Clamp pulse width to prevent extreme values
+  if (shape > 0.9f)
+    shape = 0.9f;
+  if (shape < 0.1f)
+    shape = 0.1f;
+  return (ph > shape) ? -1.f : 1.f;
+}
+
+float ShaperOscillator::generateSine(float ph) {
+  return std::sin(2.f * M_PI * ph);
+}
+
 // ============================================================================
 // MODULE CONSTRUCTOR - PARAMETER & I/O CONFIGURATION
 // ============================================================================
@@ -261,7 +300,7 @@ KI1H_VCO::KI1H_VCO() {
   // ============================================================================
   configParam(PFINE2_PARAM, -0.5f, 0.5f, 0.f, "Detune", " cents", 0.f, 100.f, 0.f);
   configParam(PCOURSE2_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
-  configParam(PULSEWIDTH2_PARAM, 0.1f, 0.9f, 0.5f, "Pulse Width", " %", 0.f, 100.f, 0.f);
+  configParam(SHAPE_PARAM, 0.1f, 0.9f, 0.5f, "Shape", " %", 0.f, 100.f, 0.f);
   auto waveParam2 = configSwitch(WAVE2_PARAM, 0.f, 1.f, 0.f, "Wave", {"Sin-Saw", "Pulse"});
   waveParam2->snapEnabled = true;
 
@@ -278,7 +317,7 @@ KI1H_VCO::KI1H_VCO() {
   // OSCILLATOR 2 - INPUT/OUTPUT CONFIGURATION
   // ============================================================================
   configInput(PITCH2_INPUT, "1V/oct pitch");
-  configInput(PW2_INPUT, "Pulsewidth");
+  configInput(SHAPE_INPUT, "Shape");
   configInput(WEAK_SYNC, "Soft sync");
   configInput(STRONG_SYNC, "Hard sync");
   configInput(FM_INPUT, "FM");
@@ -331,9 +370,9 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 2 - PWM PROCESSING
   // ============================================================================
-  float pwm2 = 0;
-  if (inputs[PW2_INPUT].isConnected())
-    pwm2 = inputs[PW2_INPUT].getVoltage() / PWM_OFFSET;
+  float shapeIn = 0;
+  if (inputs[SHAPE_INPUT].isConnected())
+    shapeIn = inputs[SHAPE_INPUT].getVoltage() / PWM_OFFSET;
 
   // ============================================================================
   // OSCILLATOR 2 - SYNC PROCESSING
@@ -354,10 +393,10 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 2 - PROCESS & OUTPUT
   // ============================================================================
-  float pulseWidth2 = params[PULSEWIDTH2_PARAM].getValue();
+  float shape = params[SHAPE_PARAM].getValue();
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
 
-  osc2.process(pitch2, linFM, softSync, hardSync, pulseWidth2 + pwm2, waveType2, args.sampleTime);
+  osc2.process(pitch2, linFM, softSync, hardSync, shape + shapeIn, waveType2, args.sampleTime);
   outputs[WAVE2_OUT].setVoltage(CV_SCALE * osc2.getOutput());
 
   // ============================================================================
@@ -430,7 +469,7 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[4])), module,
                                                KI1H_VCO::PCOURSE2_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
-                                               KI1H_VCO::PULSEWIDTH2_PARAM));
+                                               KI1H_VCO::SHAPE_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[4])), module,
                                                KI1H_VCO::FM_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[4])), module,
@@ -444,7 +483,7 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
                                              KI1H_VCO::WAVE2_PARAM));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
-                                           KI1H_VCO::PW2_INPUT));
+                                           KI1H_VCO::SHAPE_INPUT));
   addInput(
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[5])), module, KI1H_VCO::FM_INPUT));
 }
