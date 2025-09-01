@@ -6,11 +6,10 @@
 dsp::SchmittTrigger syncTrigger;
 
 // ============================================================================
-// REUSABLE OSCILLATOR CLASS FOR DRY CODE
+// OSCILLATOR BASE CLASS
 // ============================================================================
 class Oscillator {
 public:
-  void process(float pitch, float linFM, float pulseWidth, int waveType, float sampleTime);
   float getOutput() const {
     return output;
   }
@@ -20,48 +19,48 @@ public:
   float getSin() const {
     return sin;
   }
+
+protected:
+  float phase = 0.f;
+  float output = 0.f;
+  float blinkPhase = 0.f;
+  float sin = 0.f;
+
+  void updatePhases(float freq, float sampleTime);
+  float calculateFreq(float pitch);
+  float generateSine(float ph);
+  float generateSquare(float ph, float pw);
+};
+
+// ============================================================================
+// RAW PURE WAVEFORM OSCILLATOR
+// ============================================================================
+class RawOscillator : public Oscillator {
+public:
+  void process(float pitch, float linFM, float pulseWidth, int waveType, float sampleTime);
   float getSub() const {
     return sub;
   }
 
 private:
-  float phase = 0.f;
-  float output = 0.f;
-  float blinkPhase = 0.f;
   float subPhase = 0.f;
-  float sin = 0.f;
   float sub = 0.f;
 
-  float generateSine(float ph);
   float generateTriangle(float ph);
   float generateSaw(float ph);
-  float generateSquare(float ph, float pw);
   float generateSub(float ph);
 };
 
-class ShaperOscillator {
+// ============================================================================
+// WAVESHAPING OSCILLATOR
+// ============================================================================
+class ShaperOscillator : public Oscillator {
 public:
   void process(float pitch, float linFM, float softSync, float hardSync, float shape, int waveType,
                float sampleTime);
-  float getOutput() const {
-    return output;
-  }
-  float getBlink() const {
-    return blinkPhase;
-  }
-  float getSin() const {
-    return sin;
-  }
 
 private:
-  float phase = 0.f;
-  float output = 0.f;
-  float blinkPhase = 0.f;
-  float sin = 0.f;
-
   float generateShapedWave(float ph, float shape);
-  float generateSquare(float ph, float shape);
-  float generateSine(float ph);
 };
 
 // ============================================================================
@@ -100,7 +99,7 @@ struct KI1H_VCO : Module {
   void process(const ProcessArgs &args) override;
 
 private:
-  Oscillator osc1;
+  RawOscillator osc1;
   ShaperOscillator osc2;
   float CV_SCALE = 5.f;
   float PWM_OFFSET = 5.5f;
@@ -114,28 +113,45 @@ struct KI1H_VCOWidget : ModuleWidget {
 };
 
 // ============================================================================
-// OSCILLATOR CLASS - MAIN PROCESS FUNCTION
+// OSCILLATOR CLASS - SHARED FUNCTION
 // ============================================================================
-void Oscillator::process(float pitch, float linFM, float pulseWidth, int waveType,
-                         float sampleTime) {
+float Oscillator::calculateFreq(float pitch) {
   // Calculate frequency from pitch (1V/octave)
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  return dsp::FREQ_C4 * std::pow(2.f, pitch);
+}
 
-  float subFreq = freq / 2.f;
-
-  blinkPhase += freq * sampleTime;
-  if (blinkPhase >= 1.f)
-    blinkPhase -= 1.f;
-  // Apply linear FM directly to frequency
-  freq += freq * linFM * 0.1f;
-
-  // ============================================================================
-  // PHASE ACCUMULATION
-  // ============================================================================
-  // Normal phase accumulation
+void Oscillator::updatePhases(float freq, float sampleTime) {
   phase += freq * sampleTime;
   if (phase >= 1.f)
     phase -= 1.f;
+
+  blinkPhase = phase;
+}
+
+float Oscillator::generateSine(float ph) {
+  return std::sin(2.f * M_PI * ph);
+}
+
+float Oscillator::generateSquare(float ph, float pw) {
+  // Clamp pulse width to prevent extreme values
+  if (pw > 0.9f)
+    pw = 0.9f;
+  if (pw < 0.1f)
+    pw = 0.1f;
+  return (ph > pw) ? -1.f : 1.f;
+}
+
+// ============================================================================
+// RAWOSCILLATOR CLASS
+// ============================================================================
+void RawOscillator::process(float pitch, float linFM, float pulseWidth, int waveType,
+                            float sampleTime) {
+  float freq = calculateFreq(pitch);
+  float subFreq = freq / 2.f;
+  updatePhases(freq, sampleTime);
+
+  // Apply linear FM directly to frequency
+  freq += freq * linFM * 0.1f;
 
   sin = generateSine(phase);
 
@@ -145,10 +161,6 @@ void Oscillator::process(float pitch, float linFM, float pulseWidth, int waveTyp
 
   sub = generateSub(subPhase);
 
-  // ============================================================================
-  // WAVEFORM GENERATION
-  // ============================================================================
-  // Generate waveform based on type
   switch (waveType) {
   case 0:
     output = generateTriangle(phase);
@@ -164,13 +176,29 @@ void Oscillator::process(float pitch, float linFM, float pulseWidth, int waveTyp
   }
 }
 
+float RawOscillator::generateTriangle(float ph) {
+  if (ph < 0.5f)
+    return ph * 4.f - 1.f; // Rising: 0→0.5 becomes -1→+1
+  else
+    return 3.f - ph * 4.f; // Falling: 0.5→1 becomes +1→-1
+}
+
+float RawOscillator::generateSaw(float ph) {
+  return ph * -2.f + 1.f; // Maps 0→1 phase to -1→+1
+}
+
+float RawOscillator::generateSub(float ph) {
+  return (ph > 0.5f) ? -1.f : 1.f;
+}
+
+// ============================================================================
+// SHAPEROSCILLATOR CLASS
+// ============================================================================
 void ShaperOscillator::process(float pitch, float linFM, float softSync, float hardSync,
                                float shape, int waveType, float sampleTime) {
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  float freq = calculateFreq(pitch);
+  updatePhases(freq, sampleTime);
 
-  blinkPhase += freq * sampleTime;
-  if (blinkPhase >= 1.f)
-    blinkPhase -= 1.f;
   // Apply linear FM directly to frequency
   freq += freq * linFM * 0.1f;
   // ============================================================================
@@ -197,19 +225,8 @@ void ShaperOscillator::process(float pitch, float linFM, float softSync, float h
       phase = 0.f;
   }
 
-  // ============================================================================
-  // PHASE ACCUMULATION
-  // ============================================================================
-  // Normal phase accumulation
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
-
   sin = generateSine(phase);
-  // ============================================================================
-  // WAVEFORM GENERATION
-  // ============================================================================
-  // Generate waveform based on type
+
   switch (waveType) {
   case 0:
     output = generateShapedWave(phase, shape);
@@ -220,36 +237,6 @@ void ShaperOscillator::process(float pitch, float linFM, float softSync, float h
   default:
     output = 0.f;
   }
-}
-// ============================================================================
-// OSCILLATOR CLASS - WAVEFORM GENERATORS
-// ============================================================================
-float Oscillator::generateSine(float ph) {
-  return std::sin(2.f * M_PI * ph);
-}
-
-float Oscillator::generateTriangle(float ph) {
-  if (ph < 0.5f)
-    return ph * 4.f - 1.f; // Rising: 0→0.5 becomes -1→+1
-  else
-    return 3.f - ph * 4.f; // Falling: 0.5→1 becomes +1→-1
-}
-
-float Oscillator::generateSaw(float ph) {
-  return ph * -2.f + 1.f; // Maps 0→1 phase to -1→+1
-}
-
-float Oscillator::generateSquare(float ph, float pw) {
-  // Clamp pulse width to prevent extreme values
-  if (pw > 0.9f)
-    pw = 0.9f;
-  if (pw < 0.1f)
-    pw = 0.1f;
-  return (ph > pw) ? -1.f : 1.f;
-}
-
-float Oscillator::generateSub(float ph) {
-  return (ph > 0.5f) ? -1.f : 1.f;
 }
 
 float ShaperOscillator::generateShapedWave(float ph, float shape) {
@@ -276,19 +263,6 @@ float ShaperOscillator::generateShapedWave(float ph, float shape) {
   }
 
   return result * 0.5f; // Scale appropriately
-}
-
-float ShaperOscillator::generateSquare(float ph, float shape) {
-  // Clamp pulse width to prevent extreme values
-  if (shape > 0.9f)
-    shape = 0.9f;
-  if (shape < 0.1f)
-    shape = 0.1f;
-  return (ph > shape) ? -1.f : 1.f;
-}
-
-float ShaperOscillator::generateSine(float ph) {
-  return std::sin(2.f * M_PI * ph);
 }
 
 // ============================================================================
