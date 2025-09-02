@@ -1,31 +1,12 @@
 #include "plugin.hpp"
 #include "random"
 
-// Variable filter
-
-//   // Brown noise filter (low-pass)
-//   float brownFilter = 0.5f * (whiteNoiseValue + 0.5f * whiteNoiseValue);
-
-//   // Pink noise filter (low-pass + high-pass)
-//   float pinkFilter = 0.5f * (brownFilter + 0.2f * (brownFilter - 0.5f * brownFilter));
-
-//   // White noise filter (no filtering)
-//   float whiteFilter = whiteNoiseValue;
-
-//   // Interpolate between filters based on knob value
-//   float filterValue = (knobValue * 2.0f - 1.0f); // map knob value to [-1, 1]
-//   float brownGain = (1.0f + filterValue) * 0.5f;
-//   float pinkGain = (1.0f - filterValue * 0.5f);
-//   float whiteGain = (1.0f - brownGain - pinkGain);
-
-//   return brownGain * brownFilter + pinkGain * pinkFilter + whiteGain * whiteFilter;
-// }
 // ============================================================================
 // LFO CLASS DEFINITION
 // ============================================================================
 class LFO {
 public:
-  void process(float pitch, int waveType, float sampletime);
+  void process(float pitch, int waveType, float noiseType, float sampletime);
   virtual float getOutput() const {
     return output;
   };
@@ -86,6 +67,7 @@ struct KI1H_LFO : Module {
     SRATE_PARAM,
     SWAVE_PARAM,
     SLAG_PARAM,
+    NOISE_PARAM,
     NUM_PARAMS
   };
   enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, CLOCK_IN, NUM_INPUTS };
@@ -107,7 +89,7 @@ private:
 struct KI1H_LFOWidget : ModuleWidget {
   KI1H_LFOWidget(KI1H_LFO *module);
 };
-void LFO::process(float pitch, int waveType, float sampleTime) {
+void LFO::process(float pitch, int waveType, float noiseType, float sampleTime) {
 
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
@@ -119,7 +101,21 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   if (phase >= 1.f)
     phase -= 1.f;
 
-  noise = generateNoise(noise);
+  // White noise
+  float wNoise = generateNoise(noise);
+  // Brown noise filter (low-pass)
+  float brownNoise = 0.5f * (wNoise + 0.5f * wNoise);
+
+  // Pink noise filter (low-pass + high-pass)
+  float pinkNoise = 0.5f * (brownNoise + 0.2f * (brownNoise - 0.5f * brownNoise));
+
+  // Interpolate between filters based on knob value
+  float filterValue = (noiseType * 2.0f - 1.0f); // map knob value to [-1, 1]
+  float brownLvl = (1.0f + filterValue) * 0.5f;
+  float pinkLvl = (1.0f - filterValue * 0.5f);
+  float whiteLvl = (1.0f - brownLvl - pinkLvl);
+
+  noise = 0.5f * (brownLvl * brownNoise + pinkLvl * pinkNoise + whiteLvl * wNoise);
 
   // ============================================================================
   // WAVEFORM GENERATION
@@ -174,7 +170,7 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   case 2:
     output = generateTriangle(phase);
     break;
-  case 4:
+  case 3:
     output = sampleIn / 5.f; // Raw phase output
     break;
   default:
@@ -241,7 +237,7 @@ float LFO::generateNoise(float seed) {
 
 KI1H_LFO::KI1H_LFO() {
   // ============================================================================
-  // MODULE CONFIGURATION (CALL ONLY ONCE!)
+  // MODULE CONFIGURATION
   // ============================================================================
   config(KI1H_LFO::NUM_PARAMS, KI1H_LFO::NUM_INPUTS, KI1H_LFO::NUM_OUTPUTS, KI1H_LFO::NUM_LIGHTS);
 
@@ -253,6 +249,7 @@ KI1H_LFO::KI1H_LFO() {
   auto waveParam = configSwitch(WAVE1_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sine", "Sawtooth", "Pulse"});
   waveParam->snapEnabled = true;
   configOutput(WAVE1_OUT, "LFO1 Out");
+  configParam(NOISE_PARAM, 0.f, 1.f, 0.f, "Color");
   configOutput(NOISE_OUT, "NOISE OUT");
 
   // ============================================================================
@@ -269,7 +266,7 @@ KI1H_LFO::KI1H_LFO() {
   // ============================================================================
   configParam(SRATE_PARAM, -10.f, -3.4f, -5.3f, "Sample Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
   auto sWaveParam =
-      configSwitch(SWAVE_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sawtooth", "Ramp", "Triangle"});
+      configSwitch(SWAVE_PARAM, 0.f, 3.f, 0.f, "Wave", {"Sawtooth", "Ramp", "Triangle", "Ext"});
   sWaveParam->snapEnabled = true;
   configParam(SLAG_PARAM, 0.0f, 0.2f, 0.f, "Lag", "ms", 0.f, 1000.f, 0.f);
   configInput(SAMP_IN, "Ext. In");
@@ -285,13 +282,14 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   float pitch1 = params[RATE1_PARAM].getValue();
   pitch1 += inputs[CV1_INPUT].getVoltage();
   int waveType1 = (int)params[WAVE1_PARAM].getValue();
+  float color = params[NOISE_PARAM].getValue();
 
   // ============================================================================
   // LFO 1 - PROCESS & OUTPUT
   // ============================================================================
-  lfo1.process(pitch1, waveType1, args.sampleTime);
+  lfo1.process(pitch1, waveType1, color, args.sampleTime);
   outputs[WAVE1_OUT].setVoltage(CV_SCALE * lfo1.getOutput());
-  outputs[NOISE_OUT].setVoltage(lfo1.getNoise());
+  outputs[NOISE_OUT].setVoltage(CV_SCALE * lfo1.getNoise());
 
   // ============================================================================
   // LFO 2 - PITCH
@@ -303,7 +301,7 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // ============================================================================
   // LFO 2 - PROCESS & OUTPUT
   // ============================================================================
-  lfo2.process(pitch2, waveType2, args.sampleTime);
+  lfo2.process(pitch2, waveType2, 0.f, args.sampleTime);
   outputs[WAVE2_OUT].setVoltage(CV_SCALE * lfo2.getOutput());
 
   // ============================================================================
@@ -372,6 +370,8 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
                                              KI1H_LFO::WAVE1_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
                                              KI1H_LFO::WAVE1_OUT));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[0])), module,
+                                               KI1H_LFO::NOISE_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[0])), module,
                                              KI1H_LFO::NOISE_OUT));
 
