@@ -60,6 +60,8 @@ private:
   float pKaosOut = 0.f;
   float bKaosOut = 0.f;
   dsp::SchmittTrigger sampleTrigger;
+  dsp::SchmittTrigger pKaosTrigger;
+  dsp::SchmittTrigger bKaosTrigger;
 
   // Brown noise state (integrator for 1/f² spectrum)
   float brownState = 0.f;
@@ -192,11 +194,11 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   noise = brownLvl * brownNoise + pinkLvl * pinkNoise + whiteLvl * wNoise;
 
   if (pkIn != -99.f)
-    if (sampleTrigger.process(pkIn))
+    if (pKaosTrigger.process(pkIn))
       pKaosOut = pinkNoise;
 
   if (bkIn != -99.f)
-    if (sampleTrigger.process(bkIn))
+    if (bKaosTrigger.process(bkIn))
       bKaosOut = brownNoise;
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
