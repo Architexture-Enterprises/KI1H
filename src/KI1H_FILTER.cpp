@@ -31,6 +31,7 @@ private:
   float stages[12];
   float cutoff_coeff;
 };
+
 class BPFilter : public Filter {
 public:
   void process(float input, float frequency, float width, float resonance, float sampletime);
@@ -58,6 +59,7 @@ private:
   float x1, x2, y1, y2;     // State variables
   float b0, b1, b2, a1, a2; // Coefficients
 };
+
 class HPFilter : public Filter {
 public:
   void process(float input, float cutoff, float sampletime);
