@@ -6,7 +6,7 @@
 // ============================================================================
 class LFO {
 public:
-  void process(float pitch, int waveType, float noiseType, float sampletime);
+  void process(float pitch, int waveType, float sampletime);
   virtual float getOutput() const {
     return output;
   };
@@ -35,8 +35,8 @@ protected: // Changed to protected so subclass can access
 // ============================================================================
 class SampleAndHold : public LFO {
 public:
-  void process(float pitch, float clockIn, float sampleRate, float sampleIn, int waveType,
-               float lagTime, float sampleTime);
+  void process(float pitch, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
+               int waveType, float lagTime, float color, float sampleTime);
   float getOutput() const override {
     return laggedOutput;
   };
@@ -89,7 +89,7 @@ private:
 struct KI1H_LFOWidget : ModuleWidget {
   KI1H_LFOWidget(KI1H_LFO *module);
 };
-void LFO::process(float pitch, int waveType, float noiseType, float sampleTime) {
+void LFO::process(float pitch, int waveType, float sampleTime) {
 
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
@@ -100,22 +100,6 @@ void LFO::process(float pitch, int waveType, float noiseType, float sampleTime) 
   phase += freq * sampleTime;
   if (phase >= 1.f)
     phase -= 1.f;
-
-  // White noise
-  float wNoise = generateNoise(noise);
-  // Brown noise filter (low-pass)
-  float brownNoise = 0.5f * (wNoise + 0.5f * wNoise);
-
-  // Pink noise filter (low-pass + high-pass)
-  float pinkNoise = 0.5f * (brownNoise + 0.2f * (brownNoise - 0.5f * brownNoise));
-
-  // Interpolate between filters based on knob value
-  float filterValue = (noiseType * 2.0f - 1.0f); // map knob value to [-1, 1]
-  float brownLvl = (1.0f + filterValue) * 0.5f;
-  float pinkLvl = (1.0f - filterValue * 0.5f);
-  float whiteLvl = (1.0f - brownLvl - pinkLvl);
-
-  noise = 0.5f * (brownLvl * brownNoise + pinkLvl * pinkNoise + whiteLvl * wNoise);
 
   // ============================================================================
   // WAVEFORM GENERATION
@@ -140,7 +124,8 @@ void LFO::process(float pitch, int waveType, float noiseType, float sampleTime) 
 // SAMPLE AND HOLD PROCESS METHOD
 // ============================================================================
 void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float sampleIn,
-                            int sWaveType, float lagTime, float sampleTime) {
+                            bool sampInConn, int sWaveType, float lagTime, float color,
+                            float sampleTime) {
 
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
@@ -156,6 +141,24 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   if (clockPhase >= 1.f)
     clockPhase -= 1.f;
 
+  // Cheap cheating approximations of noise within the circuit.
+  // Need to be replaced with real filter modified values to ensure
+  // correct tonal balance and distribution
+  // White noise
+  float wNoise = generateNoise(noise);
+  // Brown noise filter (low-pass)
+  float brownNoise = 0.5f * (wNoise + 0.5f * wNoise);
+
+  // Pink noise filter (low-pass + high-pass)
+  float pinkNoise = 0.5f * (brownNoise + 0.2f * (brownNoise - 0.5f * brownNoise));
+
+  // Interpolate between filters based on knob value
+  float filterValue = (color * 2.0f - 1.0f); // map knob value to [-1, 1]
+  float brownLvl = (1.0f + filterValue) * 0.5f;
+  float pinkLvl = (1.0f - filterValue * 0.5f);
+  float whiteLvl = (1.0f - brownLvl - pinkLvl);
+
+  noise = 0.5f * (brownLvl * brownNoise + pinkLvl * pinkNoise + whiteLvl * wNoise);
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
   // ============================================================================
@@ -169,9 +172,6 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
     break;
   case 2:
     output = generateTriangle(phase);
-    break;
-  case 3:
-    output = sampleIn / 5.f; // Raw phase output
     break;
   default:
     output = 0.f;
@@ -187,7 +187,7 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   // Use Schmitt trigger for robust edge detection with hysteresis
   if (sampleTrigger.process(clockOutput)) {
     // Sample the current oscillator output value on rising edge
-    sampledValue = output;
+    sampledValue = sampInConn ? sampleIn : output;
   }
 
   // ============================================================================
@@ -266,7 +266,7 @@ KI1H_LFO::KI1H_LFO() {
   // ============================================================================
   configParam(SRATE_PARAM, -10.f, -3.4f, -5.3f, "Sample Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
   auto sWaveParam =
-      configSwitch(SWAVE_PARAM, 0.f, 3.f, 0.f, "Wave", {"Sawtooth", "Ramp", "Triangle", "Ext"});
+      configSwitch(SWAVE_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sawtooth", "Ramp", "Triangle"});
   sWaveParam->snapEnabled = true;
   configParam(SLAG_PARAM, 0.0f, 0.2f, 0.f, "Lag", "ms", 0.f, 1000.f, 0.f);
   configInput(SAMP_IN, "Ext. In");
@@ -282,14 +282,12 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   float pitch1 = params[RATE1_PARAM].getValue();
   pitch1 += inputs[CV1_INPUT].getVoltage();
   int waveType1 = (int)params[WAVE1_PARAM].getValue();
-  float color = params[NOISE_PARAM].getValue();
 
   // ============================================================================
   // LFO 1 - PROCESS & OUTPUT
   // ============================================================================
-  lfo1.process(pitch1, waveType1, color, args.sampleTime);
+  lfo1.process(pitch1, waveType1, args.sampleTime);
   outputs[WAVE1_OUT].setVoltage(CV_SCALE * lfo1.getOutput());
-  outputs[NOISE_OUT].setVoltage(CV_SCALE * lfo1.getNoise());
 
   // ============================================================================
   // LFO 2 - PITCH
@@ -301,7 +299,7 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // ============================================================================
   // LFO 2 - PROCESS & OUTPUT
   // ============================================================================
-  lfo2.process(pitch2, waveType2, 0.f, args.sampleTime);
+  lfo2.process(pitch2, waveType2, args.sampleTime);
   outputs[WAVE2_OUT].setVoltage(CV_SCALE * lfo2.getOutput());
 
   // ============================================================================
@@ -322,14 +320,19 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // 2. Samples on rising edge crossings (negative to positive)
   // 3. Applies exponential lag with tau = lagTime / 4.605 for 99% settling
   // 4. Models analog RC circuit with JFET buffer behavior
-  float sampleIn = inputs[SAMP_IN].getVoltage();
+  float sampleIn = 0.f;
+  bool ext = inputs[SAMP_IN].isConnected();
+  if (ext)
+    sampleIn = inputs[SAMP_IN].getVoltage() * 0.2f;
   float clockIn = inputs[CLOCK_IN].getVoltage();
   if (inputs[CLOCK_IN].isConnected())
     sRate = -1.f;
+  float color = params[NOISE_PARAM].getValue();
 
-  SNH.process(pitch2, clockIn, sRate, sampleIn, sWaveType, lagTime, args.sampleTime);
+  SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, color, args.sampleTime);
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
+  outputs[NOISE_OUT].setVoltage(CV_SCALE * SNH.getNoise());
 
   lights[BLINK1_LIGHT].setBrightness(lfo1.getBlink() < 0.5f ? 1.f : 0.f);
   lights[BLINK2_LIGHT].setBrightness(lfo2.getBlink() < 0.5f ? 1.f : 0.f);
@@ -352,40 +355,36 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // BLINKEN LIGHTS
   // ============================================================================
-  addChild(createLightCentered<MediumLight<RedLight>>(
-      mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[1] - HALF_R)), module, KI1H_LFO::BLINK1_LIGHT));
-  addChild(createLightCentered<MediumLight<RedLight>>(
-      mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[5] - HALF_R)), module, KI1H_LFO::BLINK2_LIGHT));
+  addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[0])),
+                                                      module, KI1H_LFO::BLINK1_LIGHT));
+  addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[4])),
+                                                      module, KI1H_LFO::BLINK2_LIGHT));
   addChild(createLightCentered<MediumLight<RedLight>>(
       mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[3] - HALF_R)), module, KI1H_LFO::CLOCK_LIGHT));
 
   // ============================================================================
   // LFO 1 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
-                                               KI1H_LFO::RATE1_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
+  addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[1] - HALF_R)),
+                                                  module, KI1H_LFO::RATE1_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[1])), module,
                                            KI1H_LFO::CV1_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3] - HALF_C, ROWS[1])), module,
                                              KI1H_LFO::WAVE1_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
-                                             KI1H_LFO::WAVE1_OUT));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[0])), module,
-                                               KI1H_LFO::NOISE_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[0])), module,
-                                             KI1H_LFO::NOISE_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[1] - HALF_R)),
+                                             module, KI1H_LFO::WAVE1_OUT));
 
   // ============================================================================
   // LFO 2 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
-                                               KI1H_LFO::RATE2_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
+  addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[5] - HALF_R)),
+                                                  module, KI1H_LFO::RATE2_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[5])), module,
                                            KI1H_LFO::CV2_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3] - HALF_C, ROWS[5])), module,
                                              KI1H_LFO::WAVE2_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
-                                             KI1H_LFO::WAVE2_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[5] - HALF_R)),
+                                             module, KI1H_LFO::WAVE2_OUT));
 
   // ============================================================================
   // S&H - CONTROL KNOBS
@@ -400,6 +399,10 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[3])), module, KI1H_LFO::SAMP_IN));
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
                                              KI1H_LFO::SWAVE_PARAM));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[2])), module,
+                                               KI1H_LFO::NOISE_PARAM));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[2])), module,
+                                             KI1H_LFO::NOISE_OUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[3])), module,
                                              KI1H_LFO::SWAVE_OUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
