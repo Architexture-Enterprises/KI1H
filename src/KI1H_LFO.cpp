@@ -13,21 +13,16 @@ public:
   float getBlink() const {
     return phase;
   }
-  float getNoise() const {
-    return noise;
-  }
 
 protected: // Changed to protected so subclass can access
   float output = 0.f;
   float phase = 0.f;
-  float noise = 1.f;
 
   float generateSine(float phase);
   float generateTriangle(float phase);
   float generateSaw(float phase);
   float generateSquare(float phase);
   float generateRamp(float phase);
-  float generateNoise(float seed);
 };
 
 // ============================================================================
@@ -46,13 +41,28 @@ public:
   float getBlink() const {
     return clockPhase;
   };
+  float getNoise() const {
+    return noise;
+  }
 
 private:
   float clockPhase = 0.f;
   float sampledValue = 0.f;
   float laggedOutput = 0.f;
   float clockOutput = 0.f;
+  float noise = 1.f;
   dsp::SchmittTrigger sampleTrigger;
+
+  // Brown noise state (integrator for 1/f² spectrum)
+  float brownState = 0.f;
+
+  // Pink noise state variables (Paul Kellet's algorithm)
+  float pinkState[5] = {0.f, 0.f, 0.f, 0.f, 0.f};
+
+  // Noise generation methods
+  float generateNoise(float seed);
+  float generateBrownNoise(float whiteNoise);
+  float generatePinkNoise(float whiteNoise);
 };
 
 // ============================================================================
@@ -141,24 +151,28 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   if (clockPhase >= 1.f)
     clockPhase -= 1.f;
 
-  // Cheap cheating approximations of noise within the circuit.
-  // Need to be replaced with real filter modified values to ensure
-  // correct tonal balance and distribution
-  // White noise
+  // Generate proper white, brown, and pink noise
   float wNoise = generateNoise(noise);
-  // Brown noise filter (low-pass)
-  float brownNoise = 0.5f * (wNoise + 0.5f * wNoise);
+  float brownNoise = generateBrownNoise(wNoise);
+  float pinkNoise = generatePinkNoise(wNoise);
 
-  // Pink noise filter (low-pass + high-pass)
-  float pinkNoise = 0.5f * (brownNoise + 0.2f * (brownNoise - 0.5f * brownNoise));
+  // Crossfade between noise types: brown (0.0) → pink (0.5) → white (1.0)
+  // Mathematical guarantee: coefficients always sum to 1.0, no phase cancellation
+  float brownLvl, pinkLvl, whiteLvl;
 
-  // Interpolate between filters based on knob value
-  float filterValue = (color * 2.0f - 1.0f); // map knob value to [-1, 1]
-  float brownLvl = (1.0f + filterValue) * 0.5f;
-  float pinkLvl = (1.0f - filterValue * 0.5f);
-  float whiteLvl = (1.0f - brownLvl - pinkLvl);
+  if (color < 0.f) {
+    // Brown to Pink crossfade
+    brownLvl = abs(color);  // 1.0 → 0.0
+    pinkLvl = 1.0f + color; // 0.0 → 1.0
+    whiteLvl = 0.0f;
+  } else {
+    // Pink to White crossfade
+    brownLvl = 0.0f;
+    pinkLvl = 1.0f - color; // 1.0 → 0.0
+    whiteLvl = color;       // 0.0 → 1.0
+  }
 
-  noise = 0.5f * (brownLvl * brownNoise + pinkLvl * pinkNoise + whiteLvl * wNoise);
+  noise = brownLvl * brownNoise + pinkLvl * pinkNoise + whiteLvl * wNoise;
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
   // ============================================================================
@@ -227,12 +241,42 @@ float LFO::generateSquare(float ph) {
   return (ph > 0.5f) ? -1.f : 1.f;
 }
 
-float LFO::generateNoise(float seed) {
+// ============================================================================
+// SAMPLE AND HOLD CLASS - NOISE GENERATORS
+// ============================================================================
+
+float SampleAndHold::generateNoise(float seed) {
   static std::random_device rd;
   static std::mt19937 gen(rd());
   static std::normal_distribution<float> dis(0.0f, 1.0f);
 
   return dis(gen) * 1.5f;
+}
+
+float SampleAndHold::generateBrownNoise(float whiteNoise) {
+  // Brown noise: integrate White noise with leaky integrator
+  // This creates a -6dB/octave (1/f²) spectrum
+  const float leakage = 0.99f; // Prevents DC buildup
+  brownState = brownState * leakage + whiteNoise * 0.1f;
+
+  // scale limits output to narrower pp range than Pink noise
+  return brownState;
+}
+
+float SampleAndHold::generatePinkNoise(float whiteNoise) {
+  // Paul Kellet's Pink noise algorithm
+  // Uses multiple first-order filters to approximate 1/f spectrum
+  pinkState[0] = 0.99886f * pinkState[0] + whiteNoise * 0.0555179f;
+  pinkState[1] = 0.99332f * pinkState[1] + whiteNoise * 0.0750759f;
+  pinkState[2] = 0.96900f * pinkState[2] + whiteNoise * 0.1538520f;
+  pinkState[3] = 0.86650f * pinkState[3] + whiteNoise * 0.3104856f;
+  pinkState[4] = 0.55000f * pinkState[4] + whiteNoise * 0.5329522f;
+
+  float pink = pinkState[0] + pinkState[1] + pinkState[2] + pinkState[3] + pinkState[4] +
+               whiteNoise * 0.115926f;
+
+  // Scale output to slightly narrower range than Brown noise
+  return pink * 0.3f;
 }
 
 KI1H_LFO::KI1H_LFO() {
@@ -249,8 +293,6 @@ KI1H_LFO::KI1H_LFO() {
   auto waveParam = configSwitch(WAVE1_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sine", "Sawtooth", "Pulse"});
   waveParam->snapEnabled = true;
   configOutput(WAVE1_OUT, "LFO1 Out");
-  configParam(NOISE_PARAM, 0.f, 1.f, 0.f, "Color");
-  configOutput(NOISE_OUT, "NOISE OUT");
 
   // ============================================================================
   // LFO 2 - PARAMETER CONFIGURATION
@@ -273,6 +315,8 @@ KI1H_LFO::KI1H_LFO() {
   configInput(CLOCK_IN, "Clock in");
   configOutput(SWAVE_OUT, "S&H Out");
   configOutput(CLOCK_OUT, "Clock Out");
+  configParam(NOISE_PARAM, -1.f, 1.f, 0.f, "Color");
+  configOutput(NOISE_OUT, "NOISE OUT");
 };
 
 void KI1H_LFO::process(const ProcessArgs &args) {
@@ -316,7 +360,7 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // SNH - PROCESS & OUTPUT
   // ============================================================================
   // Sample and Hold with Lag - Implementation details:
-  // 1. Uses LFO oscillator as trigger source
+  // 1. Uses LFO2 oscillator as trigger source
   // 2. Samples on rising edge crossings (negative to positive)
   // 3. Applies exponential lag with tau = lagTime / 4.605 for 99% settling
   // 4. Models analog RC circuit with JFET buffer behavior
@@ -332,7 +376,7 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, color, args.sampleTime);
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
-  outputs[NOISE_OUT].setVoltage(CV_SCALE * SNH.getNoise());
+  outputs[NOISE_OUT].setVoltage(SNH.getNoise());
 
   lights[BLINK1_LIGHT].setBrightness(lfo1.getBlink() < 0.5f ? 1.f : 0.f);
   lights[BLINK2_LIGHT].setBrightness(lfo2.getBlink() < 0.5f ? 1.f : 0.f);
