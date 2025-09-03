@@ -293,7 +293,7 @@ KI1H_VCO::KI1H_VCO() {
   // OSCILLATOR 2 - PARAMETER CONFIGURATION
   // ============================================================================
   configParam(PFINE2_PARAM, -0.5f, 0.5f, 0.f, "Detune", " cents", 0.f, 100.f, 0.f);
-  configParam(PCOURSE2_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam(PCOURSE2_PARAM, -5.5f, 6.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
   configParam(SHAPE_PARAM, 0.1f, 0.9f, 0.5f, "Shape", " %", 0.f, 100.f, 0.f);
   auto waveParam2 = configSwitch(WAVE2_PARAM, 0.f, 1.f, 0.f, "Wave", {"Sin-Saw", "Pulse"});
   waveParam2->snapEnabled = true;
