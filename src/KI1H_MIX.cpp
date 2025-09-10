@@ -25,22 +25,19 @@ float softLimit(float input) {
 // ============================================================================
 // CHANNEL CLASS DEFINITION
 // ============================================================================
-class Channel {
-public:
+struct Channel {
   void process(float input, float cvIn);
   float getOutput() const {
     return output;
   };
 
-private:
   float output = 0.f;
 };
 
 // ============================================================================
 // MIX CLASS DEFINITION
 // ============================================================================
-class Mix {
-public:
+struct Mix {
   void process(std::array<float, 5> all);
   float getAllOut() const {
     return allOut;
@@ -52,7 +49,6 @@ public:
     return rightOut;
   };
 
-private:
   float allOut = 0.f;
   float leftOut = 0.f;
   float rightOut = 0.f;

@@ -11,29 +11,22 @@
 // ============================================================================
 // CLASS DEFINITION
 // ============================================================================
-class Filter {
-public:
+struct Filter {
   float getOutput() {
     return output;
   }
-
-protected:
   float output = 0.f;
 };
 
-class LPFilter : public Filter {
-public:
+struct LPFilter : Filter {
   void process(float input, float cutoff, float resonance, float sampletime);
   float minFreq = 20.f;
   float maxFreq = 22000.f;
-
-private:
   float stages[12];
   float cutoff_coeff;
 };
 
-class BPFilter : public Filter {
-public:
+struct BPFilter : Filter {
   void process(float input, float frequency, float width, float resonance, float sampletime);
   float minFreq = 30.f;
   float maxFreq = 15000.f;
@@ -49,8 +42,6 @@ public:
     a1 = (-2.0f * cos_w) / a0;
     a2 = (1.0f - alpha) / a0;
   }
-
-private:
   // 6dB HP state
   float hp_prev_in = 1.f;
   float hp_prev_out = 1.f;
@@ -60,13 +51,10 @@ private:
   float b0, b1, b2, a1, a2; // Coefficients
 };
 
-class HPFilter : public Filter {
-public:
+struct HPFilter : Filter {
   void process(float input, float cutoff, float sampletime);
   float minFreq = 30.f;
   float maxFreq = 10000.f;
-
-private:
   float prev_input = 1.f;
   float prev_output = 1.f;
 };

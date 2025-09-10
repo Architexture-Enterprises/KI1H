@@ -4,8 +4,7 @@
 // ============================================================================
 // LFO CLASS DEFINITION
 // ============================================================================
-class LFO {
-public:
+struct LFO {
   void process(float pitch, int waveType, float sampletime);
   virtual float getOutput() const {
     return output;
@@ -14,7 +13,6 @@ public:
     return phase;
   }
 
-protected: // Changed to protected so subclass can access
   float output = 0.f;
   float phase = 0.f;
 
@@ -28,7 +26,7 @@ protected: // Changed to protected so subclass can access
 // ============================================================================
 // SAMPLE AND HOLD CLASS DEFINITION (Inherits from LFO)
 // ============================================================================
-class SampleAndHold : public LFO {
+struct SampleAndHold : LFO {
 public:
   void process(float pitch, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
                int waveType, float lagTime, float pkIn, float bkIn, float color, float sampleTime);
@@ -51,7 +49,6 @@ public:
     return bKaosOut;
   }
 
-private:
   float clockPhase = 0.f;
   float sampledValue = 0.f;
   float laggedOutput = 0.f;

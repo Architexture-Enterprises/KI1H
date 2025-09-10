@@ -8,8 +8,7 @@ dsp::SchmittTrigger syncTrigger;
 // ============================================================================
 // OSCILLATOR BASE CLASS
 // ============================================================================
-class Oscillator {
-public:
+struct Oscillator {
   float getOutput() const {
     return output;
   }
@@ -20,7 +19,6 @@ public:
     return sin;
   }
 
-protected:
   float phase = 0.f;
   float output = 0.f;
   float blinkPhase = 0.f;
@@ -35,14 +33,12 @@ protected:
 // ============================================================================
 // RAW PURE WAVEFORM OSCILLATOR
 // ============================================================================
-class RawOscillator : public Oscillator {
-public:
+struct RawOscillator : Oscillator {
   void process(float pitch, float linFM, float pulseWidth, int waveType, float sampleTime);
   float getSub() const {
     return sub;
   }
 
-private:
   float subPhase = 0.f;
   float sub = 0.f;
 
@@ -54,12 +50,10 @@ private:
 // ============================================================================
 // WAVESHAPING OSCILLATOR
 // ============================================================================
-class ShaperOscillator : public Oscillator {
-public:
+struct ShaperOscillator : Oscillator {
   void process(float pitch, float linFM, float softSync, float hardSync, float shape, int waveType,
                float sampleTime);
 
-private:
   float generateShapedWave(float ph, float shape);
 };
 
