@@ -68,6 +68,10 @@ struct KI1H_FILTER : Module {
     BPFreq1,
     BPFreq2,
     HPFreq,
+    LPMod,
+    BPMod1,
+    BPMod2,
+    HPMod,
     LPRes,
     BPRes1,
     BPRes2,
@@ -83,10 +87,13 @@ struct KI1H_FILTER : Module {
     BP1IN,
     BP2IN,
     HPIN,
-    LPFREQ_IN,
-    BPFREQ1_IN,
-    BPFREQ2_IN,
-    HPFREQ_IN,
+    LPMOD_IN,
+    BPMOD1_IN,
+    BPWIDTH1_IN,
+    BPWIDTH2_IN,
+    BPMOD2_IN,
+    HPMOD_IN,
+    BIGKNOB_IN,
     NUM_INPUTS
   };
   enum OUTPUT_IDS { LPOUT, BPOUT1, BPOUT2, HPOUT, NUM_OUTPUTS };
@@ -178,6 +185,7 @@ KI1H_FILTER::KI1H_FILTER() {
               0.1f, "LP Freq", " Hz", 0.f, 1.f, 0.f);
   configParam(KI1H_FILTER::LPRes, 0.f, 1.666f, 0.f, "LP Resonance", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::LPIN, "LP In");
+  configInput(KI1H_FILTER::LPMOD_IN, "LP FM");
   configOutput(KI1H_FILTER::LPOUT, "LP Out");
 
   // ============================================================================
@@ -188,6 +196,8 @@ KI1H_FILTER::KI1H_FILTER() {
   configParam(KI1H_FILTER::BPWidth1, 0.5, 5.f, 0.f, "BP1 Width", " %", 0.f, 20.f, 0.f);
   configParam(KI1H_FILTER::BPRes1, 0.01, 1.666f, 0.f, "BP1 Resonance", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::BP1IN, "BP1 In");
+  configInput(KI1H_FILTER::BPMOD1_IN, "BP1 FM");
+  configInput(KI1H_FILTER::BPWIDTH1_IN, "BP1 Width");
   configOutput(KI1H_FILTER::BPOUT1, "BP1 Out");
 
   configParam(KI1H_FILTER::BPFreq2, KI1H_FILTER::bpfilter2.minFreq, KI1H_FILTER::bpfilter2.maxFreq,
@@ -195,6 +205,8 @@ KI1H_FILTER::KI1H_FILTER() {
   configParam(KI1H_FILTER::BPWidth2, 0.5f, 5.f, 0.f, "BP2 Width", " %", 0.f, 20.f, 0.f);
   configParam(KI1H_FILTER::BPRes2, 0.01f, 1.666f, 0.f, "BP2 Resonance", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::BP2IN, "BP2 In");
+  configInput(KI1H_FILTER::BPMOD2_IN, "BP2 FM");
+  configInput(KI1H_FILTER::BPWIDTH2_IN, "BP2 Width");
   configOutput(KI1H_FILTER::BPOUT2, "BP2 Out");
 
   // ============================================================================
@@ -203,12 +215,14 @@ KI1H_FILTER::KI1H_FILTER() {
   configParam(KI1H_FILTER::HPFreq, KI1H_FILTER::hpfilter.minFreq, KI1H_FILTER::hpfilter.maxFreq,
               1.f, "HP Freq", " Hz", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::HPIN, "HP In");
+  configInput(KI1H_FILTER::HPMOD_IN, "HP FM");
   configOutput(KI1H_FILTER::HPOUT, "HP Out");
 
   // ============================================================================
   // LINKED CONTROLS
   // ============================================================================
   configParam(KI1H_FILTER::BigKnob, 0.f, 1.f, 0.f, "Frequency", " Hz", 0.f, 1.f, 0.f);
+  configInput(KI1H_FILTER::BIGKNOB_IN, "Linked Frequency");
   auto filter1link = configSwitch(Filt1Link, 0.f, 1.f, 0.f, "Filter 1 Link", {"on", "off"});
   filter1link->snapEnabled = true;
   auto filter2link = configSwitch(Filt2Link, 0.f, 1.f, 0.f, "Filter 2 Link", {"off", "on"});
@@ -237,10 +251,49 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
   float link1 = params[Filt1Link].getValue();
   float link2 = params[Filt2Link].getValue();
 
+  float lpMod = inputs[LPMOD_IN].getVoltage();
+  float bp1Mod = inputs[BPMOD1_IN].getVoltage();
+  float bp1WidthMod = inputs[BPWIDTH1_IN].getVoltage();
+  float bp2Mod = inputs[BPMOD2_IN].getVoltage();
+  float bp2WidthMod = inputs[BPWIDTH2_IN].getVoltage();
+  float hpMod = inputs[HPMOD_IN].getVoltage();
+  float bigKnobMod = inputs[BIGKNOB_IN].getVoltage();
   if (link1 == 0.f) {
     bp1Freq = clamp(bp1Freq + bigF, bpfilter1.minFreq, bpfilter1.maxFreq);
     lpFreq = clamp(lpFreq + bigF, lpfilter.minFreq, lpfilter.maxFreq);
   }
+
+  if (inputs[LPMOD_IN].isConnected()) {
+    lpFreq += lpMod * 1000.f;
+    lpFreq = clamp(lpFreq, lpfilter.minFreq, lpfilter.maxFreq);
+  }
+
+  if (inputs[BPMOD1_IN].isConnected()) {
+    bp1Freq += bp1Mod * 1000.f;
+    bp1Freq = clamp(bp1Freq, bpfilter1.minFreq, bpfilter1.maxFreq);
+  }
+
+  if (inputs[BPWIDTH1_IN].isConnected())
+    bp1Width *= (bp1WidthMod + 5.f) / 10.f;
+
+  if (inputs[BPMOD2_IN].isConnected()) {
+    bp2Freq += bp2Mod * 1000.f;
+    bp2Freq = clamp(bp2Freq, bpfilter2.minFreq, bpfilter2.maxFreq);
+  }
+
+  if (inputs[BPWIDTH2_IN].isConnected())
+    bp2Width *= (bp2WidthMod + 5.f) / 10.f;
+
+  if (inputs[HPMOD_IN].isConnected()) {
+    hpFreq += hpMod * 1000.f;
+    hpFreq = clamp(hpFreq, hpfilter.minFreq, hpfilter.maxFreq);
+  }
+
+  if (inputs[BIGKNOB_IN].isConnected()) {
+    bigF += bigKnobMod * 1000.f;
+    bigF = clamp(bigF, 0.f, bpfilter1.maxFreq);
+  }
+
   bpfilter1.process(bp1Input, bp1Freq, bp1Width, bp1Res, args.sampleTime);
   if (!outputs[BPOUT1].isConnected() && !inputs[LPIN].isConnected())
     lpInput = bpfilter1.getOutput();
@@ -277,8 +330,10 @@ KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
   // ============================================================================
   // LP SECTION
   // ============================================================================
-  addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[0])), module, KI1H_FILTER::LPIN));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[0])), module,
+                                           KI1H_FILTER::LPMOD_IN));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[2])), module,
+                                           KI1H_FILTER::LPIN));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[1])), module,
                                                KI1H_FILTER::LPFreq));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
@@ -291,17 +346,25 @@ KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
   // ============================================================================
   addInput(
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[0])), module, KI1H_FILTER::BP1IN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
+                                           KI1H_FILTER::BPMOD1_IN));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
+                                           KI1H_FILTER::BPWIDTH1_IN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
                                                KI1H_FILTER::BPFreq1));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                                KI1H_FILTER::BPWidth1));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
                                                KI1H_FILTER::BPRes1));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[2])), module,
                                              KI1H_FILTER::BPOUT1));
 
-  addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[5])), module, KI1H_FILTER::BP2IN));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[3])), module,
+                                           KI1H_FILTER::BP2IN));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[5])), module,
+                                           KI1H_FILTER::BPMOD2_IN));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
+                                           KI1H_FILTER::BPWIDTH2_IN));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[4])), module,
                                                KI1H_FILTER::BPFreq2));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
@@ -316,20 +379,24 @@ KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
   // ============================================================================
   addInput(
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module, KI1H_FILTER::HPIN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
+                                           KI1H_FILTER::HPMOD_IN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[4])), module,
                                                KI1H_FILTER::HPFreq));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[3])), module,
                                              KI1H_FILTER::HPOUT));
 
   // ============================================================================
   // JOINT CONTROLS
   // ============================================================================
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+                                           KI1H_FILTER::BIGKNOB_IN));
   addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[3] - HALF_R)), module,
                                                   KI1H_FILTER::BigKnob));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
-                                             KI1H_FILTER::Filt1Link));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
-                                             KI1H_FILTER::Filt2Link));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[2] - HALF_R)),
+                                             module, KI1H_FILTER::Filt1Link));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3] - HALF_C, ROWS[4] - HALF_R)),
+                                             module, KI1H_FILTER::Filt2Link));
 };
 
 Model *modelKI1H_FILTER = createModel<KI1H_FILTER, KI1H_FILTERWidget>("KI1H-FILTER");
