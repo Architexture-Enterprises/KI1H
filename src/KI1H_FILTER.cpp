@@ -258,10 +258,6 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
   float bp2WidthMod = inputs[BPWIDTH2_IN].getVoltage();
   float hpMod = inputs[HPMOD_IN].getVoltage();
   float bigKnobMod = inputs[BIGKNOB_IN].getVoltage();
-  if (link1 == 0.f) {
-    bp1Freq = clamp(bp1Freq + bigF, bpfilter1.minFreq, bpfilter1.maxFreq);
-    lpFreq = clamp(lpFreq + bigF, lpfilter.minFreq, lpfilter.maxFreq);
-  }
 
   if (inputs[LPMOD_IN].isConnected()) {
     lpFreq += lpMod * 1000.f;
@@ -293,16 +289,20 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
     bigF += bigKnobMod * 1000.f;
     bigF = clamp(bigF, 0.f, bpfilter1.maxFreq);
   }
+  if (link1 == 0.f) {
+    bp1Freq = clamp(bp1Freq + bigF, bpfilter1.minFreq, bpfilter1.maxFreq);
+    lpFreq = clamp(lpFreq + bigF, lpfilter.minFreq, lpfilter.maxFreq);
+  }
+  if (link2 == 1.f) {
+    hpFreq = clamp(hpFreq + bigF, hpfilter.minFreq, hpfilter.maxFreq);
+    bp2Freq = clamp(bp2Freq + bigF, bpfilter2.minFreq, bpfilter2.maxFreq);
+  }
 
   bpfilter1.process(bp1Input, bp1Freq, bp1Width, bp1Res, args.sampleTime);
   if (!outputs[BPOUT1].isConnected() && !inputs[LPIN].isConnected())
     lpInput = bpfilter1.getOutput();
   lpfilter.process(lpInput, lpFreq, lpRes, args.sampleTime);
 
-  if (link2 == 1.f) {
-    hpFreq = clamp(hpFreq + bigF, hpfilter.minFreq, hpfilter.maxFreq);
-    bp2Freq = clamp(bp2Freq + bigF, bpfilter2.minFreq, bpfilter2.maxFreq);
-  }
   hpfilter.process(hpInput, hpFreq, args.sampleTime);
   if (!outputs[HPOUT].isConnected() && !inputs[BP2IN].isConnected())
     bp2Input = hpfilter.getOutput();
