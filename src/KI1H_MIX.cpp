@@ -58,7 +58,7 @@ struct Mix {
 // MIX MODULE DEFINITION
 // ============================================================================
 struct KI1H_MIX : Module {
-  enum PARAM_IDS { ATT1, ATT2, ATT3, ATT4, ATT5, PAN1, PAN2, PAN3, PAN4, PAN5, NUM_PARAMS };
+  enum PARAM_IDS { ATT1, ATT2, ATT3, ATT4, ATT5, MIX1, MIX2, MIX3, MIX4, MIX5, NUM_PARAMS };
   enum INPUT_IDS { CV1, CV2, CV3, CV4, CV5, IN1, IN2, IN3, IN4, IN5, NUM_INPUTS };
   enum OUTPUT_IDS { OUT1, OUT2, OUT3, OUT4, OUT5, ALL_OUT, LOUT, ROUT, NUM_OUTPUTS };
 
@@ -112,8 +112,9 @@ KI1H_MIX::KI1H_MIX() {
 
   // Configure parameters for all 6 channels
   for (int i = 0; i < 5; i++) {
-    configParam(ATT1 + i, -1.2f, 1.2f, 0.f, "Ch" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
-    configParam(PAN1 + i, 0.f, 1.f, 0.5f, "Pan" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
+    configParam(ATT1 + i, -1.f, 1.f, 0.f, "Attenuverter" + std::to_string(i + 1), "%", 0.f, 100,
+                0.f);
+    configParam(MIX1 + i, -1.2f, 1.2f, 0.f, "Level" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
     configInput(CV1 + i, "CV" + std::to_string(i + 1));
     configInput(IN1 + i, "In" + std::to_string(i + 1));
     configOutput(OUT1 + i, "Out" + std::to_string(i + 1));
@@ -135,10 +136,10 @@ void KI1H_MIX::process(const ProcessArgs &args) {
     float input = inputs[IN1 + i].getVoltage();
     float cv = 1;
     if (inputs[CV1 + i].isConnected())
-      cv = inputs[CV1 + i].getVoltage();
+      cv = inputs[CV1 + i].getVoltage() * params[ATT1 + i].getValue();
 
     // Get attenuverter parameter value
-    float attenuverter = params[ATT1 + i].getValue();
+    float attenuverter = params[MIX1 + i].getValue();
 
     // Process channel with CV scaled attenuverter
     channels[i].process(input, attenuverter + (cv / CV_SCALE));
@@ -187,8 +188,10 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
     addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[1] - HALF_R)), module,
                                                KI1H_MIX::OUT1 + i));
     addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[i], ROWS[2])), module,
+                                                 KI1H_MIX::MIX1 + i));
+    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[i], ROWS[4] - HALF_R)), module,
                                                  KI1H_MIX::ATT1 + i));
-    addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5] - HALF_R)), module,
+    addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[4] + (HALF_R / 2))), module,
                                              KI1H_MIX::CV1 + i));
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
                                              KI1H_MIX::IN1 + i));
