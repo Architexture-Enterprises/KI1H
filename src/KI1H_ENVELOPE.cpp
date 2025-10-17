@@ -11,7 +11,7 @@
 // ============================================================================
 // CLASS DEFINITION
 // ============================================================================
-struct Klass {
+struct Envelope {
 public:
   void process();
 
@@ -21,16 +21,16 @@ private:
 // ============================================================================
 // MODULE DEFINITION
 // ============================================================================
-struct KI1H_template : Module {
+struct KI1H_ENVELOPE : Module {
   enum PARAM_IDS { NUM_PARAMS };
   enum INPUT_IDS { NUM_INPUTS };
   enum OUTPUT_IDS { NUM_OUTPUTS };
 
-  KI1H_template();
-  KI1H_template(const KI1H_template &) = default;
-  KI1H_template(KI1H_template &&) = default;
-  KI1H_template &operator=(const KI1H_template &) = default;
-  KI1H_template &operator=(KI1H_template &&) = default;
+  KI1H_ENVELOPE();
+  KI1H_ENVELOPE(const KI1H_ENVELOPE &) = default;
+  KI1H_ENVELOPE(KI1H_ENVELOPE &&) = default;
+  KI1H_ENVELOPE &operator=(const KI1H_ENVELOPE &) = default;
+  KI1H_ENVELOPE &operator=(KI1H_ENVELOPE &&) = default;
   void process(const ProcessArgs &args) override;
 
 private:
@@ -40,32 +40,32 @@ private:
 // ============================================================================
 // WIDGET DEFINITION
 // ============================================================================
-struct KI1H_templateWidget : ModuleWidget {
-  KI1H_templateWidget(KI1H_template *module);
+struct KI1H_ENVELOPEWidget : ModuleWidget {
+  KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module);
 };
 
 // ============================================================================
 // PROCESS METHOD
 // ============================================================================
 
-void Klass::process() {};
+void Envelope::process() {};
 
 // ============================================================================
 // MODULE CONFIGURATION
 // ============================================================================
-KI1H_template::KI1H_template() {
+KI1H_ENVELOPE::KI1H_ENVELOPE() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS);
 };
 
 // ============================================================================
-// Klass - PARAMETER CONFIGURATION
+// Envelope - PARAMETER CONFIGURATION
 // ============================================================================
 
-void KI1H_template::process(const ProcessArgs &args) {};
+void KI1H_ENVELOPE::process(const ProcessArgs &args) {};
 
-KI1H_templateWidget::KI1H_templateWidget(KI1H_template *module) {
+KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
   setModule(module);
-  setPanel(createPanel(asset::plugin(pluginInstance, "res/KI1H-template.svg")));
+  setPanel(createPanel(asset::plugin(pluginInstance, "res/KI1H-ENVELOPE.svg")));
 
   // ============================================================================
   // PANEL SCREWS
@@ -77,4 +77,4 @@ KI1H_templateWidget::KI1H_templateWidget(KI1H_template *module) {
       Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 };
 
-Model *modelKI1H_template = createModel<KI1H_template, KI1H_templateWidget>("KI1H-template");
+Model *modelKI1H_ENVELOPE = createModel<KI1H_ENVELOPE, KI1H_ENVELOPEWidget>("KI1H-ENVELOPE");
