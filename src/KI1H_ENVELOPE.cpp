@@ -12,10 +12,54 @@
 // CLASS DEFINITION
 // ============================================================================
 struct Envelope {
-public:
-  void process();
+  float env = 0.f;
+};
 
-private:
+struct ADEnvelope : Envelope {
+  enum Stage { STAGE_OFF, STAGE_ATTACK, STAGE_RELEASE };
+
+  Stage stage = STAGE_OFF;
+  float releaseValue;
+  float timeInCurrentStage = 0.f;
+  float attackTime = 0.1, releaseTime = 0.1;
+
+  ADEnvelope() {};
+
+  void processTransition() {
+    if (stage == STAGE_ATTACK) {
+      timeInCurrentStage = 0.f;
+      stage = STAGE_RELEASE;
+      releaseValue = env;
+    } else if (stage == STAGE_RELEASE) {
+      if (timeInCurrentStage > releaseTime) {
+        stage = STAGE_OFF;
+        timeInCurrentStage = 0.f;
+      }
+    }
+  }
+
+  void evolveEnvelope(const float &sampleTime) {
+    switch (stage) {
+    case STAGE_OFF: {
+      env = 0.f;
+      break;
+    }
+    case STAGE_ATTACK: {
+      timeInCurrentStage += sampleTime;
+      env = std::min(timeInCurrentStage / attackTime, 1.f);
+      break;
+    }
+    case STAGE_RELEASE: {
+      timeInCurrentStage += sampleTime;
+      env = std::min(1.f, timeInCurrentStage / releaseTime);
+      break;
+    }
+    }
+  }
+
+  void process(const float &sampleTime) {
+    evolveEnvelope(sampleTime);
+  }
 };
 
 // ============================================================================
@@ -48,7 +92,7 @@ struct KI1H_ENVELOPEWidget : ModuleWidget {
 // PROCESS METHOD
 // ============================================================================
 
-void Envelope::process() {};
+// void ADEnvelope::process() {};
 
 // ============================================================================
 // MODULE CONFIGURATION
