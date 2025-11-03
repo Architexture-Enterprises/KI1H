@@ -3,6 +3,7 @@
 // INCLUDES & GLOBAL VARIABLES
 // ============================================================================
 #include "componentlibrary.hpp"
+#include "helpers.hpp"
 #include "plugin.hpp"
 
 // ============================================================================
@@ -18,7 +19,7 @@
 // ============================================================================
 struct Envelope {
 
-  enum Stage { STAGE_OFF, STAGE_ATTACK, STAGE_SUSTAIN, STAGE_RELEASE };
+  enum Stage { STAGE_OFF, STAGE_ATTACK, STAGE_RELEASE };
   float env = 0.f;
   float eoa = 0.f;
   float eor = 1.f;
@@ -27,30 +28,30 @@ struct Envelope {
 struct ADEnvelope : Envelope {
 
   Stage stage = STAGE_OFF;
-  float timeInCurrentStage = 0.f;
+  float envState = 0.f;
   float attackTime = 0.1f, releaseTime = 0.1f;
 
   ADEnvelope() {};
 
   void retrigger() {
     stage = STAGE_ATTACK;
-    timeInCurrentStage = 0.f;
+    env = envState = 0.f;
   }
 
   void processTransition() {
-    if (stage == STAGE_ATTACK || stage == STAGE_SUSTAIN) {
-      if (timeInCurrentStage > attackTime) {
+    if (stage == STAGE_ATTACK) {
+      if (envState >= 1.0f) {
         eoa = 1.f;
         eor = 0.f;
-        timeInCurrentStage = 0.f;
+        env = envState = 1.0f;
         stage = STAGE_RELEASE;
       }
     } else if (stage == STAGE_RELEASE) {
-      if (timeInCurrentStage >= releaseTime) {
+      if (envState <= 0.f) {
         eoa = 0.f;
         eor = 1.f;
         stage = STAGE_OFF;
-        timeInCurrentStage = 0.f;
+        env = envState = 0.f;
       }
     }
   }
@@ -58,20 +59,17 @@ struct ADEnvelope : Envelope {
   void evolveEnvelope(const float &sampleTime) {
     switch (stage) {
     case STAGE_ATTACK: {
-      timeInCurrentStage += sampleTime;
-      env = std::min(timeInCurrentStage / attackTime, 1.f);
+      envState += sampleTime / attackTime;
+      env = std::min(envState, 1.f);
       break;
     }
     case STAGE_RELEASE: {
-      timeInCurrentStage += sampleTime;
-      env = std::min(1.f, timeInCurrentStage / releaseTime);
+      envState -= sampleTime / releaseTime;
+      env = std::max(0.f, envState);
       break;
     }
     case STAGE_OFF: {
       env = 0.0f;
-      break;
-    }
-    case STAGE_SUSTAIN: {
       break;
     }
     }
@@ -173,11 +171,13 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
                                        KI1H_ENVELOPE::ATTACK_PARAM));
   addChild(createParam<BefacoSlidePot>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
                                        KI1H_ENVELOPE::RELEASE_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3] - HALF_R)), module,
+                                           KI1H_ENVELOPE::TRIGGER_INPUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[0] - HALF_R)), module,
                                              KI1H_ENVELOPE::EOA));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[0] - HALF_R)), module,
                                              KI1H_ENVELOPE::EOR));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[3] - HALF_R)), module,
                                              KI1H_ENVELOPE::OUT));
 };
 
