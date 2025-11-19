@@ -52,6 +52,15 @@
         "Analog",
         "VCA"
       ]
+    },
+    {
+      "slug": "KI1H-ENVELOPE",
+      "name": "KI1H-ENVELOPE",
+      "description": "An envelope generator based on the 258",
+      "tags": [
+        "envelope",
+        "Analog"
+      ]
     }
   ]
 }
