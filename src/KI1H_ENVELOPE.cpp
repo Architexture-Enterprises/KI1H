@@ -35,10 +35,11 @@ struct ADEnvelope : Envelope {
 
   void retrigger() {
     stage = STAGE_ATTACK;
+
     env = envState = 0.f;
   }
 
-  void processTransition() {
+  void processTransition(const bool held) {
     if (stage == STAGE_ATTACK) {
       if (envState >= 1.0f) {
         eoa = 1.f;
@@ -47,6 +48,9 @@ struct ADEnvelope : Envelope {
         stage = STAGE_RELEASE;
       }
     } else if (stage == STAGE_RELEASE) {
+      if (held) {
+        eoa = 1.f;
+      }
       if (envState <= 0.f) {
         eoa = 0.f;
         eor = 1.f;
@@ -78,8 +82,8 @@ struct ADEnvelope : Envelope {
     }
   }
 
-  void process(const float &sampleTime) {
-    processTransition();
+  void process(const float &sampleTime, const bool held) {
+    processTransition(held);
     evolveEnvelope(sampleTime);
   }
 };
@@ -97,12 +101,16 @@ struct ASDEnvelope : Envelope {
     env = envState = 0.f;
   }
 
-  void processTransition() {
+  void processTransition(const bool held) {
     if (stage == STAGE_ATTACK) {
-      if (envState >= 1.0f) {
+      if (envState >= sustain) {
         eoa = 1.f;
         eor = 0.f;
-        env = envState = 1.0f;
+        env = envState = sustain;
+        stage = STAGE_SUSTAIN;
+      }
+    } else if (stage == STAGE_SUSTAIN) {
+      if (!held) {
         stage = STAGE_RELEASE;
       }
     } else if (stage == STAGE_RELEASE) {
@@ -128,6 +136,7 @@ struct ASDEnvelope : Envelope {
       break;
     }
     case STAGE_SUSTAIN: {
+
       break;
     }
     case STAGE_OFF: {
@@ -137,8 +146,8 @@ struct ASDEnvelope : Envelope {
     }
   }
 
-  void process(const float &sampleTime) {
-    processTransition();
+  void process(const float &sampleTime, const bool held) {
+    processTransition(held);
     evolveEnvelope(sampleTime);
   }
 };
@@ -253,12 +262,12 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   const float rls1Lvl = clamp(params[REL1_PARAM].getValue(), 0.f, 1.f);
   ad1.releaseTime = convertCVToTimeInSeconds(rls1Lvl);
   const bool triggered1 = gateTrigger1.process(inputs[TRIGGER1_INPUT].getVoltage());
-
+  const bool ad1held = gateTrigger1.isHigh();
   if (triggered1) {
     ad1.retrigger();
   }
 
-  ad1.process(args.sampleTime);
+  ad1.process(args.sampleTime, ad1held);
 
   outputs[OUT1].setVoltage(ad1.env * CV_SCALE);
   outputs[EOA1].setVoltage(ad1.eoa * CV_SCALE);
@@ -270,15 +279,30 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   asd1.sustain = susLvl;
   const float rls2Lvl = clamp(params[REL2_PARAM].getValue(), 0.f, 1.f);
   asd1.releaseTime = convertCVToTimeInSeconds(rls2Lvl);
-  const bool triggered2 = gateTrigger2.process(inputs[TRIGGER2_INPUT].getVoltage());
+  const bool ADSR1 = !inputs[TRIGGER2_INPUT].isConnected();
+  float asr1TrigPulse = 0.f;
+  if (ADSR1) {
+    asr1TrigPulse = outputs[EOA1].getVoltage();
+  } else {
+    asr1TrigPulse = inputs[TRIGGER2_INPUT].getVoltage();
+  }
 
+  const bool triggered2 = gateTrigger2.process(asr1TrigPulse);
+  const bool held1 = gateTrigger2.isHigh();
   if (triggered2) {
     asd1.retrigger();
   }
 
-  asd1.process(args.sampleTime);
+  asd1.process(args.sampleTime, held1);
 
-  outputs[OUT2].setVoltage(asd1.env * CV_SCALE);
+  float adsr1Volt = asd1.env;
+  if (ADSR1) {
+    if (ad1.env > adsr1Volt) {
+      adsr1Volt = ad1.env;
+    }
+  }
+
+  outputs[OUT2].setVoltage(adsr1Volt * CV_SCALE);
   outputs[EOA2].setVoltage(asd1.eoa * CV_SCALE);
   outputs[EOR2].setVoltage(asd1.eor * CV_SCALE);
 
@@ -287,12 +311,12 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   const float rls3Lvl = clamp(params[REL3_PARAM].getValue(), 0.f, 1.f);
   ad2.releaseTime = convertCVToTimeInSeconds(rls3Lvl);
   const bool triggered3 = gateTrigger3.process(inputs[TRIGGER3_INPUT].getVoltage());
-
+  const bool ad2held = gateTrigger3.isHigh();
   if (triggered3) {
     ad2.retrigger();
   }
 
-  ad2.process(args.sampleTime);
+  ad2.process(args.sampleTime, ad2held);
 
   outputs[OUT3].setVoltage(ad2.env * CV_SCALE);
   outputs[EOA3].setVoltage(ad2.eoa * CV_SCALE);
@@ -304,15 +328,35 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   asd2.sustain = sus2Lvl;
   const float rls4Lvl = clamp(params[REL4_PARAM].getValue(), 0.f, 1.f);
   asd2.releaseTime = convertCVToTimeInSeconds(rls4Lvl);
-  const bool triggered4 = gateTrigger4.process(inputs[TRIGGER4_INPUT].getVoltage());
+  const bool ADSR2 = !inputs[TRIGGER4_INPUT].isConnected();
+  float asr2TrigPulse = 0.f;
+  if (ADSR2) {
+    asr2TrigPulse = outputs[EOA3].getVoltage();
+  } else {
+    asr2TrigPulse = inputs[TRIGGER4_INPUT].getVoltage();
+  }
+
+  const bool triggered4 = gateTrigger4.process(asr2TrigPulse);
+  bool held2 = false;
+  if (ADSR2) {
+    held2 = gateTrigger3.isHigh();
+  } else {
+    held2 = gateTrigger4.isHigh();
+  }
 
   if (triggered4) {
     asd2.retrigger();
   }
 
-  asd2.process(args.sampleTime);
+  asd2.process(args.sampleTime, held2);
+  float adsr2Volt = asd2.env;
+  if (ADSR2) {
+    if (ad2.env > adsr2Volt) {
+      adsr2Volt = ad2.env;
+    }
+  }
 
-  outputs[OUT4].setVoltage(asd2.env * CV_SCALE);
+  outputs[OUT4].setVoltage(adsr2Volt * CV_SCALE);
   outputs[EOA4].setVoltage(asd2.eoa * CV_SCALE);
   outputs[EOR4].setVoltage(asd2.eor * CV_SCALE);
 };
@@ -356,30 +400,30 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[2] + HALF_R / 2)), module,
                                              KI1H_ENVELOPE::OUT2));
 
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[0], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::ATK3_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[1], ROWS[4])), module,
+  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[1], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::REL3_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
+  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[2], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::ATK4_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[3], ROWS[4])), module,
+  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[3], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::SUS2_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[4], ROWS[4])), module,
+  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[4], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::REL4_PARAM));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
                                            KI1H_ENVELOPE::TRIGGER3_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0] + HALF_C, ROWS[3])), module,
-                                             KI1H_ENVELOPE::EOA3));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] + HALF_C, ROWS[3])), module,
-                                             KI1H_ENVELOPE::EOR3));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0] + HALF_C, ROWS[3] - HALF_R / 2)),
+                                             module, KI1H_ENVELOPE::EOA3));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] + HALF_C, ROWS[3] - HALF_R / 2)),
+                                             module, KI1H_ENVELOPE::EOR3));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
                                              KI1H_ENVELOPE::OUT3));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
                                            KI1H_ENVELOPE::TRIGGER4_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[3])), module,
-                                             KI1H_ENVELOPE::EOA4));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[3])), module,
-                                             KI1H_ENVELOPE::EOR4));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[3] - HALF_R / 2)),
+                                             module, KI1H_ENVELOPE::EOA4));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[3] - HALF_R / 2)),
+                                             module, KI1H_ENVELOPE::EOR4));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
                                              KI1H_ENVELOPE::OUT4));
 };
