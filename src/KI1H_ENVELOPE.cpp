@@ -303,6 +303,7 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   }
 
   outputs[OUT2].setVoltage(adsr1Volt * CV_SCALE);
+  outputs[OUT2].setVoltage(asd1.env * CV_SCALE);
   outputs[EOA2].setVoltage(asd1.eoa * CV_SCALE);
   outputs[EOR2].setVoltage(asd1.eor * CV_SCALE);
 

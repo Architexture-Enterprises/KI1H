@@ -434,61 +434,61 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // BLINKEN LIGHTS
   // ============================================================================
-  addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[0])),
+  addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(COLUMNS[2], ROWS[3] - HALF_R)),
                                                       module, KI1H_LFO::BLINK1_LIGHT));
-  addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[4])),
+  addChild(createLightCentered<MediumLight<RedLight>>(mm2px(Vec(COLUMNS[2], ROWS[5] - HALF_R)),
                                                       module, KI1H_LFO::BLINK2_LIGHT));
   addChild(createLightCentered<MediumLight<RedLight>>(
-      mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[3] - HALF_R)), module, KI1H_LFO::CLOCK_LIGHT));
+      mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[1] - HALF_R)), module, KI1H_LFO::CLOCK_LIGHT));
 
   // ============================================================================
   // LFO 1 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[1] - HALF_R)),
-                                                  module, KI1H_LFO::RATE1_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[1])), module,
+  addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[3] - HALF_R)), module,
+                                                  KI1H_LFO::RATE1_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
                                            KI1H_LFO::CV1_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3] - HALF_C, ROWS[1])), module,
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
                                              KI1H_LFO::WAVE1_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[1] - HALF_R)),
-                                             module, KI1H_LFO::WAVE1_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
+                                             KI1H_LFO::WAVE1_OUT));
 
   // ============================================================================
   // LFO 2 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[5] - HALF_R)),
-                                                  module, KI1H_LFO::RATE2_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[5])), module,
+  addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[5] - HALF_R)), module,
+                                                  KI1H_LFO::RATE2_PARAM));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
                                            KI1H_LFO::CV2_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3] - HALF_C, ROWS[5])), module,
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
                                              KI1H_LFO::WAVE2_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[5] - HALF_R)),
-                                             module, KI1H_LFO::WAVE2_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
+                                             KI1H_LFO::WAVE2_OUT));
 
   // ============================================================================
   // S&H - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
                                                KI1H_LFO::SRATE_PARAM));
   addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module, KI1H_LFO::CLOCK_IN));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[2])), module,
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module, KI1H_LFO::CLOCK_IN));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_LFO::SLAG_PARAM));
   addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[3])), module, KI1H_LFO::SAMP_IN));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
-                                             KI1H_LFO::SWAVE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[2])), module,
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[1])), module, KI1H_LFO::SAMP_IN));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[1] - HALF_R)),
+                                             module, KI1H_LFO::SWAVE_PARAM));
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[4], ROWS[0])), module,
                                                KI1H_LFO::NOISE_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[2])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
                                              KI1H_LFO::NOISE_OUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[3])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                              KI1H_LFO::SWAVE_OUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
                                              KI1H_LFO::CLOCK_OUT));
   addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[0])), module, KI1H_LFO::PKAOS_IN));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[2])), module, KI1H_LFO::PKAOS_IN));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[3])), module,
                                              KI1H_LFO::PKAOS_OUT));
   addInput(
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[5])), module, KI1H_LFO::BKAOS_IN));
