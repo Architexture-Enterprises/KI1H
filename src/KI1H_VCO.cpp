@@ -430,10 +430,10 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
                                              KI1H_VCO::WAVE_PARAM));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                            KI1H_VCO::PW1_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[2] - HALF_R)), module,
-                                             KI1H_VCO::WAVE_OUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[3] - HALF_R)), module,
-                                             KI1H_VCO::SUB_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[2] - HALF_R)),
+                                             module, KI1H_VCO::WAVE_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[1] - HALF_R)),
+                                             module, KI1H_VCO::SUB_OUT));
 
   // ============================================================================
   // OSCILLATOR 2 - SYNC & FM CONTROLS
@@ -456,8 +456,8 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
                                                KI1H_VCO::SHAPE_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[3] - HALF_R)), module,
                                                KI1H_VCO::FM_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[4] - HALF_R)), module,
-                                             KI1H_VCO::WAVE2_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[4] - HALF_R)),
+                                             module, KI1H_VCO::WAVE2_OUT));
 
   // ============================================================================
   // OSCILLATOR 2 - INPUTS & WAVE CONTROL
