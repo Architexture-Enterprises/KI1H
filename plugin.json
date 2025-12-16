@@ -61,6 +61,16 @@
         "envelope",
         "Analog"
       ]
+    },
+    {
+      "slug": "KI1H-KAOS",
+      "name": "KI1H-KAOS",
+      "description": "Noise module and pink red chaos",
+      "tags": [
+        "KAOS",
+        "Analog",
+        "VCA"
+      ]
     }
   ]
 }

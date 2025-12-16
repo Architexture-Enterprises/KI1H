@@ -1,5 +1,5 @@
 #include "plugin.hpp"
-#include "random"
+#include <random>
 
 struct KAOS {
 public:
@@ -43,8 +43,8 @@ void KAOS::process(float color, float bkIn, float pkIn) {
 
   if (color < 0.f) {
     // Brown to Pink crossfade
-    brownLvl = abs(color);  // 1.0 → 0.0
-    pinkLvl = 1.0f + color; // 0.0 → 1.0
+    brownLvl = std::abs(color); // 1.0 → 0.0
+    pinkLvl = 1.0f + color;     // 0.0 → 1.0
     whiteLvl = 0.0f;
   } else {
     // Pink to White crossfade
@@ -133,8 +133,9 @@ KI1H_KAOS::KI1H_KAOS() {
 
 void KI1H_KAOS::process(const ProcessArgs &args) {
   float color = params[NOISE_PARAM].getValue();
-  float bkIn = inputs[BKAOS_IN].isConnected() ? inputs[BKAOS_IN].getVoltage() : -100.f;
-  float pkIn = inputs[PKAOS_IN].isConnected() ? inputs[PKAOS_IN].getVoltage() : -100.f;
+  float bkIn = inputs[BKAOS_IN].isConnected() ? inputs[BKAOS_IN].getVoltage() : -99.f;
+  float pkIn = inputs[PKAOS_IN].isConnected() ? inputs[PKAOS_IN].getVoltage() : -99.f;
+  KAOS.process(color, bkIn, pkIn);
   outputs[NOISE_OUT].setVoltage(KAOS.getNoise());
   if (outputs[PKAOS_OUT].isConnected())
     outputs[PKAOS_OUT].setVoltage(KAOS.getpKaos());
@@ -150,20 +151,19 @@ KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
   // PANEL SCREWS
   // ============================================================================
   addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
-  addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
   addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-  addChild(createWidget<ScrewSilver>(
-      Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[4], ROWS[0])), module,
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_KAOS::NOISE_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
                                              KI1H_KAOS::NOISE_OUT));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[2])), module,
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
                                            KI1H_KAOS::PKAOS_IN));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[3])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
                                              KI1H_KAOS::PKAOS_OUT));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
                                            KI1H_KAOS::BKAOS_IN));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[4])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
                                              KI1H_KAOS::BKAOS_OUT));
 };
+
+Model *modelKI1H_KAOS = createModel<KI1H_KAOS, KI1H_KAOSWidget>("KI1H-KAOS");
