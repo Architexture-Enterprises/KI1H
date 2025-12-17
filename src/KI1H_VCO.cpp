@@ -81,8 +81,7 @@ struct KI1H_VCO : Module {
     PW1_INPUT,
     SHAPE_INPUT,
     FM_INPUT,
-    WEAK_SYNC,
-    STRONG_SYNC,
+    SYNC_IN,
     NUM_INPUTS
   };
   enum OutputIds { WAVE_OUT, WAVE2_OUT, SUB_OUT, NUM_OUTPUTS };
@@ -188,8 +187,8 @@ float RawOscillator::generateSub(float ph) {
 // ============================================================================
 // SHAPEROSCILLATOR CLASS
 // ============================================================================
-void ShaperOscillator::process(float pitch, float linFM, float softSync, float hardSync,
-                               float shape, int waveType, float sampleTime) {
+void ShaperOscillator::process(float pitch, float linFM, float syncType, float syncVal, float shape,
+                               int waveType, float sampleTime) {
   float freq = calculateFreq(pitch);
   updatePhases(freq, sampleTime);
 
@@ -199,24 +198,28 @@ void ShaperOscillator::process(float pitch, float linFM, float softSync, float h
   // SYNC PROCESSING
   // ============================================================================
   // Hard sync - digital reset when sync signal crosses threshold
-  if (syncTrigger.process(hardSync)) {
-    phase = 0.f;
+  if (syncType == 2.f) {
+    if (syncTrigger.process(syncVal)) {
+      phase = 0.f;
+    }
   }
 
   // Soft sync - analog-modeled continuous phase pulling
   // The sync signal creates a "force" that pulls the phase toward reset
-  float syncPull = 0.f;
-  if (softSync > 0.1f) { // Only pull when sync signal is above noise floor
-    // Create exponential pull force - stronger as phase increases
-    float pullStrength = softSync * 0.2f;    // Scale sync signal
-    syncPull = pullStrength * phase * phase; // Quadratic pull (gets stronger near end of cycle)
+  if (syncType == 0.f) {
+    float syncPull = 0.f;
+    if (syncVal > 0.1f) { // Only pull when sync signal is above noise floor
+      // Create exponential pull force - stronger as phase increases
+      float pullStrength = syncVal * 0.2f;     // Scale sync signal
+      syncPull = pullStrength * phase * phase; // Quadratic pull (gets stronger near end of cycle)
 
-    // Pull phase backward toward 0, creating the chaotic analog behavior
-    phase -= syncPull * sampleTime * freq;
+      // Pull phase backward toward 0, creating the chaotic analog behavior
+      phase -= syncPull * sampleTime * freq;
 
-    // Prevent phase from going negative
-    if (phase < 0.f)
-      phase = 0.f;
+      // Prevent phase from going negative
+      if (phase < 0.f)
+        phase = 0.f;
+    }
   }
 
   sin = generateSine(phase);
@@ -306,8 +309,7 @@ KI1H_VCO::KI1H_VCO() {
   // ============================================================================
   configInput(PITCH2_INPUT, "1V/oct pitch");
   configInput(SHAPE_INPUT, "Shape");
-  configInput(WEAK_SYNC, "Soft sync");
-  configInput(STRONG_SYNC, "Hard sync");
+  configInput(SYNC_IN, "Ext sync");
   configInput(FM_INPUT, "FM");
   configOutput(WAVE2_OUT, "Waveform");
 }
@@ -334,7 +336,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 2 - PITCH & SYNC SETUP
   // ============================================================================
-  int syncVal = (int)params[SYNC_PARAM].getValue();
+  int syncType = (int)params[SYNC_PARAM].getValue();
   float pitch2 = params[PFINE2_PARAM].getValue() + params[PCOURSE2_PARAM].getValue();
   pitch2 += inputs[PITCH2_INPUT].getVoltage();
 
@@ -366,18 +368,11 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 2 - SYNC PROCESSING
   // ============================================================================
-  float softSync = 0.f;
-  if (inputs[WEAK_SYNC].isConnected())
-    softSync = inputs[WEAK_SYNC].getVoltage();
-  float hardSync = 0.f;
-  if (inputs[STRONG_SYNC].isConnected())
-    hardSync = inputs[STRONG_SYNC].getVoltage();
-
-  // Internal sync routing from Osc1
-  if (syncVal == 0)
-    softSync += (CV_SCALE * osc1.getOutput());
-  else if (syncVal == 2)
-    hardSync += (CV_SCALE * osc1.getOutput());
+  float syncVal = 0.f;
+  if (inputs[SYNC_IN].isConnected())
+    syncVal = inputs[SYNC_IN].getVoltage();
+  else
+    syncVal = (CV_SCALE * osc1.getOutput());
 
   // ============================================================================
   // OSCILLATOR 2 - PROCESS & OUTPUT
@@ -385,7 +380,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   float shape = params[SHAPE_PARAM].getValue();
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
 
-  osc2.process(pitch2, linFM, softSync, hardSync, shape + shapeIn, waveType2, args.sampleTime);
+  osc2.process(pitch2, linFM, syncType, syncVal, shape + shapeIn, waveType2, args.sampleTime);
   outputs[WAVE2_OUT].setVoltage(CV_SCALE * osc2.getOutput());
 
   // ============================================================================
@@ -435,21 +430,19 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
                                              KI1H_VCO::WAVE_PARAM));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                            KI1H_VCO::PW1_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[0])), module,
-                                             KI1H_VCO::WAVE_OUT));
-  addOutput(
-      createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module, KI1H_VCO::SUB_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[2] - HALF_R)),
+                                             module, KI1H_VCO::WAVE_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[1] - HALF_R)),
+                                             module, KI1H_VCO::SUB_OUT));
 
   // ============================================================================
   // OSCILLATOR 2 - SYNC & FM CONTROLS
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
-                                           KI1H_VCO::WEAK_SYNC));
+  addInput(
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module, KI1H_VCO::SYNC_IN));
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[3])), module,
                                              KI1H_VCO::SYNC_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
-                                           KI1H_VCO::STRONG_SYNC));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3], ROWS[3])), module,
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[2])), module,
                                              KI1H_VCO::FM_SWITCH_PARAM));
 
   // ============================================================================
@@ -461,10 +454,10 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
                                                KI1H_VCO::PCOURSE2_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
                                                KI1H_VCO::SHAPE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[3], ROWS[4])), module,
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[3] - HALF_R)), module,
                                                KI1H_VCO::FM_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[4])), module,
-                                             KI1H_VCO::WAVE2_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[4] - HALF_R)),
+                                             module, KI1H_VCO::WAVE2_OUT));
 
   // ============================================================================
   // OSCILLATOR 2 - INPUTS & WAVE CONTROL
@@ -476,7 +469,7 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
                                            KI1H_VCO::SHAPE_INPUT));
   addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3], ROWS[5])), module, KI1H_VCO::FM_INPUT));
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[2])), module, KI1H_VCO::FM_INPUT));
 }
 
 Model *modelKI1H_VCO = createModel<KI1H_VCO, KI1H_VCOWidget>("KI1H-VCO");

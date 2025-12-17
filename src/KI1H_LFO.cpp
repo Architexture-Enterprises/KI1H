@@ -29,7 +29,7 @@ struct LFO {
 struct SampleAndHold : LFO {
 public:
   void process(float pitch, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
-               int waveType, float lagTime, float pkIn, float bkIn, float color, float sampleTime);
+               int waveType, float lagTime, float sampleTime);
   float getOutput() const override {
     return laggedOutput;
   };
@@ -39,37 +39,12 @@ public:
   float getBlink() const {
     return clockPhase;
   };
-  float getNoise() const {
-    return noise;
-  }
-  float getpKaos() const {
-    return pKaosOut;
-  }
-  float getbKaos() const {
-    return bKaosOut;
-  }
 
   float clockPhase = 0.f;
   float sampledValue = 0.f;
   float laggedOutput = 0.f;
   float clockOutput = 0.f;
-  float noise = 1.f;
-  float pKaosOut = 0.f;
-  float bKaosOut = 0.f;
   dsp::SchmittTrigger sampleTrigger;
-  dsp::SchmittTrigger pKaosTrigger;
-  dsp::SchmittTrigger bKaosTrigger;
-
-  // Brown noise state (integrator for 1/f² spectrum)
-  float brownState = 0.f;
-
-  // Pink noise state variables (Paul Kellet's algorithm)
-  float pinkState[5] = {0.f, 0.f, 0.f, 0.f, 0.f};
-
-  // Noise generation methods
-  float generateNoise(float seed);
-  float generateBrownNoise(float whiteNoise);
-  float generatePinkNoise(float whiteNoise);
 };
 
 // ============================================================================
@@ -84,20 +59,10 @@ struct KI1H_LFO : Module {
     SRATE_PARAM,
     SWAVE_PARAM,
     SLAG_PARAM,
-    NOISE_PARAM,
     NUM_PARAMS
   };
-  enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, CLOCK_IN, PKAOS_IN, BKAOS_IN, NUM_INPUTS };
-  enum OutputIds {
-    WAVE1_OUT,
-    WAVE2_OUT,
-    NOISE_OUT,
-    SWAVE_OUT,
-    CLOCK_OUT,
-    PKAOS_OUT,
-    BKAOS_OUT,
-    NUM_OUTPUTS
-  };
+  enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, CLOCK_IN, NUM_INPUTS };
+  enum OutputIds { WAVE1_OUT, WAVE2_OUT, CLOCK_OUT, SWAVE_OUT, NUM_OUTPUTS };
   enum LightIds { BLINK1_LIGHT, BLINK2_LIGHT, CLOCK_LIGHT, NUM_LIGHTS };
 
   KI1H_LFO();
@@ -150,8 +115,7 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 // SAMPLE AND HOLD PROCESS METHOD
 // ============================================================================
 void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float sampleIn,
-                            bool sampInConn, int sWaveType, float lagTime, float pkIn, float bkIn,
-                            float color, float sampleTime) {
+                            bool sampInConn, int sWaveType, float lagTime, float sampleTime) {
 
   float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
@@ -167,36 +131,6 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   if (clockPhase >= 1.f)
     clockPhase -= 1.f;
 
-  // Generate proper white, brown, and pink noise
-  float wNoise = generateNoise(noise);
-  float brownNoise = generateBrownNoise(wNoise);
-  float pinkNoise = generatePinkNoise(wNoise);
-
-  // Crossfade between noise types: brown (0.0) → pink (0.5) → white (1.0)
-  // Mathematical guarantee: coefficients always sum to 1.0, no phase cancellation
-  float brownLvl, pinkLvl, whiteLvl;
-
-  if (color < 0.f) {
-    // Brown to Pink crossfade
-    brownLvl = abs(color);  // 1.0 → 0.0
-    pinkLvl = 1.0f + color; // 0.0 → 1.0
-    whiteLvl = 0.0f;
-  } else {
-    // Pink to White crossfade
-    brownLvl = 0.0f;
-    pinkLvl = 1.0f - color; // 1.0 → 0.0
-    whiteLvl = color;       // 0.0 → 1.0
-  }
-
-  noise = brownLvl * brownNoise + pinkLvl * pinkNoise + whiteLvl * wNoise;
-
-  if (pkIn != -99.f)
-    if (pKaosTrigger.process(pkIn))
-      pKaosOut = pinkNoise;
-
-  if (bkIn != -99.f)
-    if (bKaosTrigger.process(bkIn))
-      bKaosOut = brownNoise;
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
   // ============================================================================
@@ -265,44 +199,6 @@ float LFO::generateSquare(float ph) {
   return (ph > 0.5f) ? -1.f : 1.f;
 }
 
-// ============================================================================
-// SAMPLE AND HOLD CLASS - NOISE GENERATORS
-// ============================================================================
-
-float SampleAndHold::generateNoise(float seed) {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  static std::normal_distribution<float> dis(0.0f, 1.0f);
-
-  return dis(gen) * 1.5f;
-}
-
-float SampleAndHold::generateBrownNoise(float whiteNoise) {
-  // Brown noise: integrate White noise with leaky integrator
-  // This creates a -6dB/octave (1/f²) spectrum
-  const float leakage = 0.99f; // Prevents DC buildup
-  brownState = brownState * leakage + whiteNoise * 0.1f;
-
-  // scale limits output to narrower pp range than Pink noise
-  return brownState;
-}
-
-float SampleAndHold::generatePinkNoise(float whiteNoise) {
-  // Paul Kellet's Pink noise algorithm
-  // Uses multiple first-order filters to approximate 1/f spectrum
-  pinkState[0] = 0.99886f * pinkState[0] + whiteNoise * 0.0555179f;
-  pinkState[1] = 0.99332f * pinkState[1] + whiteNoise * 0.0750759f;
-  pinkState[2] = 0.96900f * pinkState[2] + whiteNoise * 0.1538520f;
-  pinkState[3] = 0.86650f * pinkState[3] + whiteNoise * 0.3104856f;
-  pinkState[4] = 0.55000f * pinkState[4] + whiteNoise * 0.5329522f;
-
-  float pink = pinkState[0] + pinkState[1] + pinkState[2] + pinkState[3] + pinkState[4] +
-               whiteNoise * 0.115926f;
-
-  // Scale output to slightly narrower range than Brown noise
-  return pink * 0.3f;
-}
-
 KI1H_LFO::KI1H_LFO() {
   // ============================================================================
   // MODULE CONFIGURATION
@@ -339,12 +235,6 @@ KI1H_LFO::KI1H_LFO() {
   configInput(CLOCK_IN, "Clock in");
   configOutput(SWAVE_OUT, "S&H Out");
   configOutput(CLOCK_OUT, "Clock Out");
-  configParam(NOISE_PARAM, -1.f, 1.f, 0.f, "Color");
-  configOutput(NOISE_OUT, "NOISE OUT");
-  configInput(PKAOS_IN, "Chaos 1 Trig");
-  configInput(BKAOS_IN, "Chaos 2 Trig");
-  configOutput(PKAOS_OUT, "Chaos 1 Out");
-  configOutput(BKAOS_OUT, "Chaos 2 Out");
 };
 
 void KI1H_LFO::process(const ProcessArgs &args) {
@@ -399,19 +289,10 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   float clockIn = inputs[CLOCK_IN].getVoltage();
   if (inputs[CLOCK_IN].isConnected())
     sRate = -1.f;
-  float color = params[NOISE_PARAM].getValue();
-  float bkIn = inputs[BKAOS_IN].isConnected() ? inputs[BKAOS_IN].getVoltage() : -99.f;
-  float pkIn = inputs[PKAOS_IN].isConnected() ? inputs[PKAOS_IN].getVoltage() : -99.f;
 
-  SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, pkIn, bkIn, color,
-              args.sampleTime);
+  SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime);
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
-  outputs[NOISE_OUT].setVoltage(SNH.getNoise());
-  if (outputs[PKAOS_OUT].isConnected())
-    outputs[PKAOS_OUT].setVoltage(SNH.getpKaos());
-  if (outputs[BKAOS_OUT].isConnected())
-    outputs[BKAOS_OUT].setVoltage(SNH.getbKaos());
 
   lights[BLINK1_LIGHT].setBrightness(lfo1.getBlink() < 0.5f ? 1.f : 0.f);
   lights[BLINK2_LIGHT].setBrightness(lfo2.getBlink() < 0.5f ? 1.f : 0.f);
@@ -430,7 +311,6 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
   addChild(createWidget<ScrewSilver>(
       Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-
   // ============================================================================
   // BLINKEN LIGHTS
   // ============================================================================
@@ -478,22 +358,10 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[1])), module, KI1H_LFO::SAMP_IN));
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[1] - HALF_R)),
                                              module, KI1H_LFO::SWAVE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[4], ROWS[0])), module,
-                                               KI1H_LFO::NOISE_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
-                                             KI1H_LFO::NOISE_OUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                              KI1H_LFO::SWAVE_OUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
                                              KI1H_LFO::CLOCK_OUT));
-  addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[2])), module, KI1H_LFO::PKAOS_IN));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[3])), module,
-                                             KI1H_LFO::PKAOS_OUT));
-  addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[5])), module, KI1H_LFO::BKAOS_IN));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[4])), module,
-                                             KI1H_LFO::BKAOS_OUT));
 }
 
 Model *modelKI1H_LFO = createModel<KI1H_LFO, KI1H_LFOWidget>("KI1H-LFO");
