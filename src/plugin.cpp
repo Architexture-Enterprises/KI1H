@@ -12,6 +12,7 @@ void init(Plugin *p) {
   p->addModel(modelKI1H_FILTER);
   p->addModel(modelKI1H_ENVELOPE);
   p->addModel(modelKI1H_KAOS);
+  p->addModel(modelKI1H_VCA);
   // Any other plugin initialization may go here.
   // As an alternative, consider lazy-loading assets and lookup tables when your module is created
   // to reduce startup times of Rack.

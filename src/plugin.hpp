@@ -14,6 +14,7 @@ extern Model *modelKI1H_MIX;
 extern Model *modelKI1H_FILTER;
 extern Model *modelKI1H_ENVELOPE;
 extern Model *modelKI1H_KAOS;
+extern Model *modelKI1H_VCA;
 
 // UI Layout Constants - 6 rows with 18.8 spacing
 constexpr float ROW_SPACING = 18.8f;

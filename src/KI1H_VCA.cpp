@@ -5,6 +5,7 @@
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
 #include "plugin.hpp"
+#include <algorithm>
 #include <array>
 #include <numeric>
 #include <string>
@@ -12,6 +13,7 @@
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
+namespace {
 float softLimit(float input) {
   if (fabs(input) > 5.2f) {
     float sign = (input >= 0) ? 1.0f : -1.0f;
@@ -33,12 +35,13 @@ struct Channel {
 
   float output = 0.f;
 };
+}
 
 // ============================================================================
 // VCA CLASS DEFINITION
 // ============================================================================
 struct VCA {
-  void process(std::array<float, 5> all);
+  void process(std::array<float, 5> channels, std::array<float, 5> pans);
   float getLeftOut() const {
     return leftOut;
   };
@@ -64,7 +67,6 @@ struct KI1H_VCA : Module {
 private:
   Channel channels[5];
   VCA mix;
-  float CV_SCALE = 5.f;
 };
 
 // ============================================================================
@@ -79,6 +81,7 @@ struct KI1H_VCAWidget : ModuleWidget {
 // ============================================================================
 
 void Channel::process(float input, float cvIn) {
+  // CV is unipolar (0-1 range), acts as gain
   float ampd = input * cvIn;
   output = softLimit(ampd);
 };
@@ -86,17 +89,30 @@ void Channel::process(float input, float cvIn) {
 // ============================================================================
 // VCA PROCESS METHOD
 // ============================================================================
-void VCA::process(std::array<float, 5> all) {
-  std::array<float, 2> evens;
-  std::array<float, 3> odds;
-  for (unsigned long i = 0; i < sizeof(all); i++) {
-    if (i % 2 == 0)
-      odds[i / 2] = all[i];
-    else
-      evens[i / 2] = all[i];
+void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
+  float leftSum = 0.f;
+  float rightSum = 0.f;
+  
+  // Distribute each channel to left/right based on panning
+  // Pan: -1 = full left, 0 = center, +1 = full right
+  for (int i = 0; i < 5; i++) {
+    float pan = pans[i];
+    // Clamp pan to [-1, 1] range
+    pan = std::max(-1.f, std::min(1.f, pan));
+    
+    // Calculate left and right gains (linear panning)
+    // When pan = -1: left = 1, right = 0
+    // When pan = 0: left = 0.5, right = 0.5
+    // When pan = +1: left = 0, right = 1
+    float leftGain = (1.f - pan) * 0.5f;
+    float rightGain = (1.f + pan) * 0.5f;
+    
+    leftSum += channels[i] * leftGain;
+    rightSum += channels[i] * rightGain;
   }
-  leftOut = softLimit(std::accumulate(odds.begin(), odds.end(), 0.0f));
-  rightOut = softLimit(std::accumulate(evens.begin(), evens.end(), 0.0f));
+  
+  leftOut = softLimit(leftSum);
+  rightOut = softLimit(rightSum);
 };
 
 // ============================================================================
@@ -105,10 +121,10 @@ void VCA::process(std::array<float, 5> all) {
 KI1H_VCA::KI1H_VCA() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS);
 
-  // Configure parameters for all 6 channels
+  // Configure parameters for all 5 channels
   for (int i = 0; i < 5; i++) {
     configParam(PAN1 + i, -1.f, 1.f, 0.f, "Pan" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
-    configParam(MIX1 + i, -1.2f, 1.2f, 0.f, "Level" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
+    configParam(MIX1 + i, 0.f, 1.f, 1.f, "Level" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
     configInput(CV1 + i, "CV" + std::to_string(i + 1));
     configInput(IN1 + i, "In" + std::to_string(i + 1));
     configOutput(OUT1 + i, "Out" + std::to_string(i + 1));
@@ -122,33 +138,47 @@ KI1H_VCA::KI1H_VCA() {
 // ============================================================================
 
 void KI1H_VCA::process(const ProcessArgs &args) {
-  std::array<float, 5> all;
-  // Process all 6 channels
+  std::array<float, 5> channelOutputs;
+  std::array<float, 5> panValues;
+  
+  // Process all 5 channels
   for (int i = 0; i < 5; i++) {
-    // Get input signal and CV
+    // Get input signal
     float input = inputs[IN1 + i].getVoltage();
-    float cv = 1;
-    if (inputs[CV1 + i].isConnected())
-      cv = inputs[CV1 + i].getVoltage() * params[PAN1 + i].getValue();
-
-    // Get attenuverter parameter value
-    float attenuverter = params[MIX1 + i].getValue();
-
-    // Process channel with CV scaled attenuverter
-    channels[i].process(input, attenuverter + (cv / CV_SCALE));
-
-    // Set output
+    
+    // Get level parameter (0-1 range)
+    float level = params[MIX1 + i].getValue();
+    
+    // Get CV (unipolar: 0-10V range, scale to 0-1)
+    float cv = 1.f;
+    if (inputs[CV1 + i].isConnected()) {
+      float cvVoltage = inputs[CV1 + i].getVoltage();
+      // Convert unipolar CV (0-10V) to 0-1 range
+      cv = std::max(0.f, std::min(1.f, cvVoltage / 10.f));
+    }
+    
+    // Apply level and CV as unipolar gain
+    float gain = level * cv;
+    channels[i].process(input, gain);
+    
+    // Get channel output
     float output = channels[i].getOutput();
     outputs[OUT1 + i].setVoltage(output);
-    if (outputs[CV1 + i].isConnected())
-      all[i] = 0.f;
+    
+    // Store output for panning (only if individual output is not connected)
+    if (outputs[OUT1 + i].isConnected())
+      channelOutputs[i] = 0.f;
     else
-      all[i] = output;
+      channelOutputs[i] = output;
+    
+    // Store pan value for this channel
+    panValues[i] = params[PAN1 + i].getValue();
   }
 
-  mix.process(all);
+  // Process panning and sum to left/right outputs
+  mix.process(channelOutputs, panValues);
 
-  // Set mix outputs
+  // Set left and right outputs
   outputs[LOUT].setVoltage(mix.getLeftOut());
   outputs[ROUT].setVoltage(mix.getRightOUt());
 };
