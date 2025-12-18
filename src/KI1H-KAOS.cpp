@@ -160,9 +160,9 @@ KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
                                            KI1H_KAOS::PKAOS_IN));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
                                              KI1H_KAOS::PKAOS_OUT));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
                                            KI1H_KAOS::BKAOS_IN));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
                                              KI1H_KAOS::BKAOS_OUT));
 };
 
