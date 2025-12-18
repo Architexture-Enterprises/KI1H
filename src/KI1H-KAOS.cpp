@@ -150,8 +150,8 @@ KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
   // ============================================================================
   // PANEL SCREWS
   // ============================================================================
-  addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
-  addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
+  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_KAOS::NOISE_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
