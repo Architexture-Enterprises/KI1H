@@ -35,7 +35,7 @@ struct Channel {
 
   float output = 0.f;
 };
-}
+} // namespace
 
 // ============================================================================
 // VCA CLASS DEFINITION
@@ -57,7 +57,21 @@ struct VCA {
 // VCA MODULE DEFINITION
 // ============================================================================
 struct KI1H_VCA : Module {
-  enum PARAM_IDS { PAN1, PAN2, PAN3, PAN4, PAN5, MIX1, MIX2, MIX3, MIX4, MIX5, NUM_PARAMS };
+  enum PARAM_IDS {
+    PAN1,
+    PAN2,
+    PAN3,
+    PAN4,
+    PAN5,
+    MIX1,
+    MIX2,
+    MIX3,
+    MIX4,
+    MIX5,
+    PAN_CV1,
+    PAN_CV2,
+    NUM_PARAMS
+  };
   enum INPUT_IDS { CV1, CV2, CV3, CV4, CV5, IN1, IN2, IN3, IN4, IN5, NUM_INPUTS };
   enum OUTPUT_IDS { OUT1, OUT2, OUT3, OUT4, OUT5, LOUT, ROUT, NUM_OUTPUTS };
 
@@ -92,25 +106,25 @@ void Channel::process(float input, float cvIn) {
 void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
   float leftSum = 0.f;
   float rightSum = 0.f;
-  
+
   // Distribute each channel to left/right based on panning
   // Pan: -1 = full left, 0 = center, +1 = full right
   for (int i = 0; i < 5; i++) {
     float pan = pans[i];
     // Clamp pan to [-1, 1] range
     pan = std::max(-1.f, std::min(1.f, pan));
-    
+
     // Calculate left and right gains (linear panning)
     // When pan = -1: left = 1, right = 0
     // When pan = 0: left = 0.5, right = 0.5
     // When pan = +1: left = 0, right = 1
     float leftGain = (1.f - pan) * 0.5f;
     float rightGain = (1.f + pan) * 0.5f;
-    
+
     leftSum += channels[i] * leftGain;
     rightSum += channels[i] * rightGain;
   }
-  
+
   leftOut = softLimit(leftSum);
   rightOut = softLimit(rightSum);
 };
@@ -129,6 +143,10 @@ KI1H_VCA::KI1H_VCA() {
     configInput(IN1 + i, "In" + std::to_string(i + 1));
     configOutput(OUT1 + i, "Out" + std::to_string(i + 1));
   }
+  auto panCv1Switch = configSwitch(PAN_CV1, 0.f, 1.f, 0.f, "CV1 Mode", {"Vol", "Pan"});
+  panCv1Switch->snapEnabled = true;
+  auto panCv2Switch = configSwitch(PAN_CV2, 0.f, 1.f, 0.f, "CV5 Mode", {"Vol", "Pan"});
+  panCv2Switch->snapEnabled = true;
   configOutput(LOUT, "Left");
   configOutput(ROUT, "Right");
 };
@@ -140,39 +158,73 @@ KI1H_VCA::KI1H_VCA() {
 void KI1H_VCA::process(const ProcessArgs &args) {
   std::array<float, 5> channelOutputs;
   std::array<float, 5> panValues;
-  
+
   // Process all 5 channels
   for (int i = 0; i < 5; i++) {
     // Get input signal
     float input = inputs[IN1 + i].getVoltage();
-    
+
     // Get level parameter (0-1 range)
     float level = params[MIX1 + i].getValue();
-    
-    // Get CV (unipolar: 0-10V range, scale to 0-1)
-    float cv = 1.f;
+
+    // Get pan parameter
+    float pan = params[PAN1 + i].getValue();
+
+    // Get CV (unipolar: 0-10V range)
+    float cv = 0.f;
     if (inputs[CV1 + i].isConnected()) {
-      float cvVoltage = inputs[CV1 + i].getVoltage();
-      // Convert unipolar CV (0-10V) to 0-1 range
-      cv = std::max(0.f, std::min(1.f, cvVoltage / 10.f));
+      cv = inputs[CV1 + i].getVoltage();
     }
-    
-    // Apply level and CV as unipolar gain
-    float gain = level * cv;
+
+    // Check PAN_CV switches for channel 1 and channel 5
+    if (i == 0) {
+      // Channel 1: Check PAN_CV1 switch (0 = volume mode, 1 = panning mode)
+      int panCv1Mode = (int)params[PAN_CV1].getValue();
+      if (panCv1Mode == 1 && inputs[CV1 + i].isConnected()) {
+        // CV controls panning (0-10V -> -1 to +1 pan, 5V = center)
+        float cvPan = (cv / 5.f); // Map 0-10V to -1 to +1
+        pan = std::max(-1.f, std::min(1.f, cvPan));
+      } else if (panCv1Mode == 0 && inputs[CV1 + i].isConnected()) {
+        // CV controls volume (0-10V -> 0-1 gain)
+        float cvGain = std::max(0.f, std::min(1.f, cv / 10.f));
+        level *= cvGain;
+      }
+    } else if (i == 4) {
+      // Channel 5: Check PAN_CV2 switch (0 = volume mode, 1 = panning mode)
+      int panCv2Mode = (int)params[PAN_CV2].getValue();
+      if (panCv2Mode == 1 && inputs[CV1 + i].isConnected()) {
+        // CV controls panning (0-10V -> -1 to +1 pan, 5V = center)
+        float cvPan = (cv / 5.f); // Map 0-10V to -1 to +1
+        pan = std::max(-1.f, std::min(1.f, cvPan));
+      } else if (panCv2Mode == 0 && inputs[CV1 + i].isConnected()) {
+        // CV controls volume (0-10V -> 0-1 gain)
+        float cvGain = std::max(0.f, std::min(1.f, cv / 10.f));
+        level *= cvGain;
+      }
+    } else {
+      // Channels 2, 3, 4: CV always controls volume
+      if (inputs[CV1 + i].isConnected()) {
+        float cvGain = std::max(0.f, std::min(1.f, cv / 10.f));
+        level *= cvGain;
+      }
+    }
+
+    // Apply level as unipolar gain
+    float gain = level;
     channels[i].process(input, gain);
-    
+
     // Get channel output
     float output = channels[i].getOutput();
     outputs[OUT1 + i].setVoltage(output);
-    
+
     // Store output for panning (only if individual output is not connected)
     if (outputs[OUT1 + i].isConnected())
       channelOutputs[i] = 0.f;
     else
       channelOutputs[i] = output;
-    
+
     // Store pan value for this channel
-    panValues[i] = params[PAN1 + i].getValue();
+    panValues[i] = pan;
   }
 
   // Process panning and sum to left/right outputs
@@ -199,9 +251,13 @@ KI1H_VCAWidget::KI1H_VCAWidget(KI1H_VCA *module) {
   // ============================================================================
   // VCA - CONTROL KNOBS
   // ============================================================================
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[0])), module,
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[0])), module,
+                                             KI1H_VCA::PAN_CV1));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
+                                             KI1H_VCA::PAN_CV2));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[0])), module,
                                              KI1H_VCA::LOUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C, ROWS[0])), module,
                                              KI1H_VCA::ROUT));
 
   for (int i = 0; i < 5; i++) {
