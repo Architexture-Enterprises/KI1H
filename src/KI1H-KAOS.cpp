@@ -150,8 +150,8 @@ KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
   // ============================================================================
   // PANEL SCREWS
   // ============================================================================
-  addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
-  addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
+  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_KAOS::NOISE_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
@@ -160,9 +160,9 @@ KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
                                            KI1H_KAOS::PKAOS_IN));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
                                              KI1H_KAOS::PKAOS_OUT));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
                                            KI1H_KAOS::BKAOS_IN));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
                                              KI1H_KAOS::BKAOS_OUT));
 };
 
