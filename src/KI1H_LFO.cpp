@@ -53,8 +53,10 @@ public:
 struct KI1H_LFO : Module {
   enum ParamIds {
     RATE1_PARAM,
+    RATE1_CV,
     WAVE1_PARAM,
     RATE2_PARAM,
+    RATE2_CV,
     WAVE2_PARAM,
     SRATE_PARAM,
     SWAVE_PARAM,
@@ -209,6 +211,7 @@ KI1H_LFO::KI1H_LFO() {
   // LFO 1 - PARAMETER CONFIGURATION
   // ============================================================================
   configParam(RATE1_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam(RATE1_CV, 0.f, 1.f, 1.f, "Rate CV Scale", "%", 0.f, 100, 0.f);
   configInput(CV1_INPUT, "Rate");
   auto waveParam = configSwitch(WAVE1_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sine", "Sawtooth", "Pulse"});
   waveParam->snapEnabled = true;
@@ -218,6 +221,7 @@ KI1H_LFO::KI1H_LFO() {
   // LFO 2 - PARAMETER CONFIGURATION
   // ============================================================================
   configParam(RATE2_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam(RATE2_CV, 0.f, 1.f, 1.f, "Rate CV Scale", "%", 0.f, 100, 0.f);
   configInput(CV2_INPUT, "Rate");
   auto wave2Param = configSwitch(WAVE2_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sine", "Sawtooth", "Pulse"});
   wave2Param->snapEnabled = true;
@@ -242,7 +246,11 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // LFO 1 - PITCH
   // ============================================================================
   float pitch1 = params[RATE1_PARAM].getValue();
-  pitch1 += inputs[CV1_INPUT].getVoltage();
+  // Scale CV input by RATE1_CV param (0.01 to 1.0 range)
+  if (inputs[CV1_INPUT].isConnected()) {
+    float cvScale = 0.01f + params[RATE1_CV].getValue() * 0.99f; // Map 0-1 param to 0.01-1.0 scale
+    pitch1 += inputs[CV1_INPUT].getVoltage() * cvScale;
+  }
   int waveType1 = (int)params[WAVE1_PARAM].getValue();
 
   // ============================================================================
@@ -255,7 +263,11 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // LFO 2 - PITCH
   // ============================================================================
   float pitch2 = params[RATE2_PARAM].getValue();
-  pitch2 += inputs[CV2_INPUT].getVoltage();
+  // Scale CV input by RATE2_CV param (0.01 to 1.0 range)
+  if (inputs[CV2_INPUT].isConnected()) {
+    float cvScale = 0.01f + params[RATE2_CV].getValue() * 0.99f; // Map 0-1 param to 0.01-1.0 scale
+    pitch2 += inputs[CV2_INPUT].getVoltage() * cvScale;
+  }
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
 
   // ============================================================================
@@ -324,6 +336,8 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // LFO 1 - CONTROL KNOBS
   // ============================================================================
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
+                                               KI1H_LFO::RATE1_CV));
   addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[3] - HALF_R)), module,
                                                   KI1H_LFO::RATE1_PARAM));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
@@ -336,6 +350,8 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // LFO 2 - CONTROL KNOBS
   // ============================================================================
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+                                               KI1H_LFO::RATE2_CV));
   addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[5] - HALF_R)), module,
                                                   KI1H_LFO::RATE2_PARAM));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
