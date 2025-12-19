@@ -34,6 +34,8 @@ struct ADEnvelope : Envelope {
   ADEnvelope() {};
 
   void retrigger() {
+    eoa = 0.f;
+    eor = 1.f;
     stage = STAGE_ATTACK;
 
     env = envState = 0.f;
@@ -97,17 +99,23 @@ struct ASDEnvelope : Envelope {
   ASDEnvelope() {};
 
   void retrigger() {
+    eoa = 0.f;
+    eor = 1.f;
     stage = STAGE_ATTACK;
     env = envState = 0.f;
   }
 
-  void processTransition(const bool held) {
+  void processTransition(const bool asr, const bool held) {
     if (stage == STAGE_ATTACK) {
+      eoa = 1.f;
+      eor = 0.f;
       if (envState >= sustain) {
-        eoa = 1.f;
-        eor = 0.f;
         env = envState = sustain;
-        stage = STAGE_SUSTAIN;
+        if (asr) {
+          stage = STAGE_SUSTAIN;
+        } else {
+          stage = STAGE_RELEASE;
+        }
       }
     } else if (stage == STAGE_SUSTAIN) {
       if (!held) {
@@ -146,8 +154,8 @@ struct ASDEnvelope : Envelope {
     }
   }
 
-  void process(const float &sampleTime, const bool held) {
-    processTransition(held);
+  void process(const float &sampleTime, const bool sus, const bool held) {
+    processTransition(sus, held);
     evolveEnvelope(sampleTime);
   }
 };
@@ -167,6 +175,8 @@ struct KI1H_ENVELOPE : Module {
     SUS_PARAM,
     REL1_PARAM,
     REL2_PARAM,
+    ASR1_SWITCH,
+    ASR2_SWITCH,
     NUM_PARAMS
   };
   enum INPUT_IDS { TRIGGER1_INPUT, TRIGGER2_INPUT, TRIGGER3_INPUT, TRIGGER4_INPUT, NUM_INPUTS };
@@ -231,6 +241,8 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
   configParam(REL4_PARAM, 0.1f, 1.f, 0.1f, "ASD2 Release");
   configParam(SUS_PARAM, 0.1f, 1.f, 0.1f, "Sustain");
   configParam(SUS2_PARAM, 0.1f, 1.f, 0.1f, "Sustain2");
+  configParam(ASR1_SWITCH, 0.f, 1.f, 0.f, "AR/ASR Switch1");
+  configParam(ASR2_SWITCH, 0.f, 1.f, 0.f, "AR/ASR Switch2");
   configInput(TRIGGER1_INPUT, "AD1 Trigger");
   configInput(TRIGGER2_INPUT, "ASD1 Trigger");
   configInput(TRIGGER3_INPUT, "AD2 Trigger");
@@ -289,11 +301,12 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
 
   const bool triggered2 = gateTrigger2.process(asr1TrigPulse);
   const bool held1 = gateTrigger2.isHigh();
+  const bool sus1 = params[ASR1_SWITCH].getValue() > 0.f;
   if (triggered2) {
     asd1.retrigger();
   }
 
-  asd1.process(args.sampleTime, held1);
+  asd1.process(args.sampleTime, sus1, held1);
 
   float adsr1Volt = asd1.env;
   if (ADSR1) {
@@ -303,7 +316,6 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   }
 
   outputs[OUT2].setVoltage(adsr1Volt * CV_SCALE);
-  outputs[OUT2].setVoltage(asd1.env * CV_SCALE);
   outputs[EOA2].setVoltage(asd1.eoa * CV_SCALE);
   outputs[EOR2].setVoltage(asd1.eor * CV_SCALE);
 
@@ -339,6 +351,7 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
 
   const bool triggered4 = gateTrigger4.process(asr2TrigPulse);
   bool held2 = false;
+  bool sus2 = params[ASR2_SWITCH].getValue() > 0.f;
   if (ADSR2) {
     held2 = gateTrigger3.isHigh();
   } else {
@@ -349,7 +362,7 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     asd2.retrigger();
   }
 
-  asd2.process(args.sampleTime, held2);
+  asd2.process(args.sampleTime, sus2, held2);
   float adsr2Volt = asd2.env;
   if (ADSR2) {
     if (ad2.env > adsr2Volt) {
@@ -396,6 +409,8 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
                                            KI1H_ENVELOPE::TRIGGER2_INPUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[0])), module,
                                              KI1H_ENVELOPE::EOA2));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3], ROWS[2] + HALF_R / 2)), module,
+                                             KI1H_ENVELOPE::ASR1_SWITCH));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
                                              KI1H_ENVELOPE::EOR2));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[2] + HALF_R / 2)), module,
@@ -421,6 +436,8 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
                                              KI1H_ENVELOPE::OUT3));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
                                            KI1H_ENVELOPE::TRIGGER4_INPUT));
+  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3], ROWS[5])), module,
+                                             KI1H_ENVELOPE::ASR2_SWITCH));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[3] - HALF_R / 2)),
                                              module, KI1H_ENVELOPE::EOA4));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[3] - HALF_R / 2)),
