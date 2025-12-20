@@ -134,15 +134,15 @@ void KI1H_MIX::process(const ProcessArgs &args) {
   for (int i = 0; i < 5; i++) {
     // Get input signal and CV
     float input = inputs[IN1 + i].getVoltage();
-    float cv = 1;
-    if (inputs[CV1 + i].isConnected())
-      cv = inputs[CV1 + i].getVoltage() * params[ATT1 + i].getValue();
-
     // Get attenuverter parameter value
     float attenuverter = params[MIX1 + i].getValue();
+    float cv = 0.0f;
+
+    if (inputs[CV1 + i].isConnected())
+      cv = (inputs[CV1 + i].getVoltage() * params[ATT1 + i].getValue()) / CV_SCALE;
 
     // Process channel with CV scaled attenuverter
-    channels[i].process(input, attenuverter + (cv / CV_SCALE));
+    channels[i].process(input, attenuverter + cv);
 
     // Set output
     float output = channels[i].getOutput();

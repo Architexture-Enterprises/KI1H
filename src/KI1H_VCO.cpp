@@ -69,6 +69,7 @@ struct KI1H_VCO : Module {
     SYNC_PARAM,
     FM_PARAM,
     FM_SWITCH_PARAM,
+    AM_PARAM,
     PCOURSE2_PARAM,
     PFINE2_PARAM,
     SHAPE_PARAM,
@@ -81,6 +82,7 @@ struct KI1H_VCO : Module {
     PW1_INPUT,
     SHAPE_INPUT,
     FM_INPUT,
+    AM_INPUT,
     SYNC_IN,
     NUM_INPUTS
   };
@@ -303,6 +305,7 @@ KI1H_VCO::KI1H_VCO() {
   configParam(FM_PARAM, 0.f, 1.f, 0.f, "FM", " %", 0.f, 100.f, 0.f);
   auto fmSwitch = configSwitch(FM_SWITCH_PARAM, 0.f, 2.f, 0.f, "FM", {"OFF", "LIN", "LOG"});
   fmSwitch->snapEnabled = true;
+  configParam(AM_PARAM, 0.f, 1.f, 0.f, "AM", " %", 0.f, 100.f, 0.f);
 
   // ============================================================================
   // OSCILLATOR 2 - INPUT/OUTPUT CONFIGURATION
@@ -311,6 +314,7 @@ KI1H_VCO::KI1H_VCO() {
   configInput(SHAPE_INPUT, "Shape");
   configInput(SYNC_IN, "Ext sync");
   configInput(FM_INPUT, "FM");
+  configInput(AM_INPUT, "AM");
   configOutput(WAVE2_OUT, "Waveform");
 }
 
@@ -430,9 +434,9 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
                                              KI1H_VCO::WAVE_PARAM));
   addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                            KI1H_VCO::PW1_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[2] - HALF_R)),
-                                             module, KI1H_VCO::WAVE_OUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[1] - HALF_R)),
+                                             module, KI1H_VCO::WAVE_OUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[2] - HALF_R)),
                                              module, KI1H_VCO::SUB_OUT));
 
   // ============================================================================
@@ -454,9 +458,11 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
                                                KI1H_VCO::PCOURSE2_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
                                                KI1H_VCO::SHAPE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[3] - HALF_R)), module,
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
                                                KI1H_VCO::FM_PARAM));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[4] - HALF_R)),
+  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
+                                               KI1H_VCO::AM_PARAM));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[5] - HALF_R)),
                                              module, KI1H_VCO::WAVE2_OUT));
 
   // ============================================================================
@@ -470,6 +476,8 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
                                            KI1H_VCO::SHAPE_INPUT));
   addInput(
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[2])), module, KI1H_VCO::FM_INPUT));
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[4] - HALF_R)),
+                                           module, KI1H_VCO::AM_INPUT));
 }
 
 Model *modelKI1H_VCO = createModel<KI1H_VCO, KI1H_VCOWidget>("KI1H-VCO");
