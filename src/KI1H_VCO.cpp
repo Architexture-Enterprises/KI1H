@@ -303,7 +303,7 @@ KI1H_VCO::KI1H_VCO() {
   auto syncParam = configSwitch(SYNC_PARAM, 0.f, 2.f, 1.f, "Sync", {"Weak", "OFF", "Strong"});
   syncParam->snapEnabled = true;
   configParam(FM_PARAM, 0.f, 1.f, 0.f, "FM", " %", 0.f, 100.f, 0.f);
-  auto fmSwitch = configSwitch(FM_SWITCH_PARAM, 0.f, 2.f, 0.f, "FM", {"OFF", "LIN", "LOG"});
+  auto fmSwitch = configSwitch(FM_SWITCH_PARAM, 0.f, 2.f, 0.f, "FM", {"LIN", "OFF", "LOG"});
   fmSwitch->snapEnabled = true;
   configParam(AM_PARAM, 0.f, 1.f, 0.f, "AM", " %", 0.f, 100.f, 0.f);
 
@@ -355,9 +355,9 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   else
     fmVal = osc1.getSin() * CV_SCALE;
 
-  // FM mode switching: 0=off, 1=linear, 2=exponential
-  float linFM = 0.f;
-  if (fmSwitch == 1)
+  // FM mode switching: 0=linear, 1=off, 2=exponential
+  float linFM = 1.f;
+  if (fmSwitch == 0)
     linFM = fmVal * params[FM_PARAM].getValue();
   if (fmSwitch == 2)
     pitch2 += fmVal * params[FM_PARAM].getValue() * 0.2f;
@@ -476,7 +476,7 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
                                            KI1H_VCO::SHAPE_INPUT));
   addInput(
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[2])), module, KI1H_VCO::FM_INPUT));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[4] - HALF_R)),
+  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[3] - HALF_R)),
                                            module, KI1H_VCO::AM_INPUT));
 }
 
