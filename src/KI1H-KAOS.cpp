@@ -56,8 +56,11 @@ void KAOS::process(float color, float bkIn, float pkIn) {
   noise = brownLvl * brownNoise + pinkLvl * pinkNoise + whiteLvl * wNoise;
 
   if (pkIn != -99.f)
-    if (pKaosTrigger.process(pkIn))
+    if (pKaosTrigger.process(pkIn)) {
       pKaosOut = pinkNoise;
+      if (bkIn == -99.f)
+        bKaosOut = brownNoise;
+    }
 
   if (bkIn != -99.f)
     if (bKaosTrigger.process(bkIn))

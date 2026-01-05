@@ -51,8 +51,8 @@ struct RawOscillator : Oscillator {
 // WAVESHAPING OSCILLATOR
 // ============================================================================
 struct ShaperOscillator : Oscillator {
-  void process(float pitch, float linFM, float softSync, float hardSync, float shape, int waveType,
-               float sampleTime);
+  void process(float pitch, float linFM, float am, float softSync, float hardSync, float shape,
+               int waveType, float sampleTime);
 
   float generateShapedWave(float ph, float shape);
 };
@@ -189,8 +189,8 @@ float RawOscillator::generateSub(float ph) {
 // ============================================================================
 // SHAPEROSCILLATOR CLASS
 // ============================================================================
-void ShaperOscillator::process(float pitch, float linFM, float syncType, float syncVal, float shape,
-                               int waveType, float sampleTime) {
+void ShaperOscillator::process(float pitch, float linFM, float AM, float syncType, float syncVal,
+                               float shape, int waveType, float sampleTime) {
   float freq = calculateFreq(pitch);
   updatePhases(freq, sampleTime);
 
@@ -236,6 +236,8 @@ void ShaperOscillator::process(float pitch, float linFM, float syncType, float s
   default:
     output = 0.f;
   }
+
+  output *= AM;
 }
 
 float ShaperOscillator::generateShapedWave(float ph, float shape) {
@@ -363,6 +365,13 @@ void KI1H_VCO::process(const ProcessArgs &args) {
     pitch2 += fmVal * params[FM_PARAM].getValue() * 0.2f;
 
   // ============================================================================
+  // OSCILLATOR 2 - AM PROCESSING
+  // ============================================================================
+  float am = 1.f;
+  if (inputs[AM_INPUT].isConnected())
+    // clamp am input between 0 and 1
+    am = params[AM_PARAM].getValue() * clamp(inputs[AM_INPUT].getVoltage() / CV_SCALE, 0.f, 1.f);
+  // ============================================================================
   // OSCILLATOR 2 - PWM PROCESSING
   // ============================================================================
   float shapeIn = 0;
@@ -384,7 +393,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   float shape = params[SHAPE_PARAM].getValue();
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
 
-  osc2.process(pitch2, linFM, syncType, syncVal, shape + shapeIn, waveType2, args.sampleTime);
+  osc2.process(pitch2, linFM, am, syncType, syncVal, shape + shapeIn, waveType2, args.sampleTime);
   outputs[WAVE2_OUT].setVoltage(CV_SCALE * osc2.getOutput());
 
   // ============================================================================
