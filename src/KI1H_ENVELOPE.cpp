@@ -397,24 +397,24 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
                                                KI1H_ENVELOPE::SUS_PARAM));
   addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
                                                KI1H_ENVELOPE::REL2_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[2] + HALF_R / 2)), module,
-                                           KI1H_ENVELOPE::TRIGGER1_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0] + HALF_C, ROWS[0])), module,
+  addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[2] + HALF_R / 2)), module,
+                                              KI1H_ENVELOPE::TRIGGER1_INPUT));
+  addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[0] + HALF_C, ROWS[0])), module,
                                              KI1H_ENVELOPE::EOA1));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] + HALF_C, ROWS[0])), module,
+  addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[1] + HALF_C, ROWS[0])), module,
                                              KI1H_ENVELOPE::EOR1));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[2] + HALF_R / 2)), module,
-                                             KI1H_ENVELOPE::OUT1));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[2] + HALF_R / 2)), module,
-                                           KI1H_ENVELOPE::TRIGGER2_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[0])), module,
+  addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[1], ROWS[2] + HALF_R / 2)), module,
+                                              KI1H_ENVELOPE::OUT1));
+  addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[2], ROWS[2] + HALF_R / 2)), module,
+                                              KI1H_ENVELOPE::TRIGGER2_INPUT));
+  addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[0])), module,
                                              KI1H_ENVELOPE::EOA2));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3], ROWS[2] + HALF_R / 2)), module,
+  addParam(createParamCentered<BefacoToggle>(mm2px(Vec(COLUMNS[3], ROWS[2] + HALF_R / 2)), module,
                                              KI1H_ENVELOPE::ASR1_SWITCH));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
+  addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
                                              KI1H_ENVELOPE::EOR2));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[2] + HALF_R / 2)), module,
-                                             KI1H_ENVELOPE::OUT2));
+  addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[4], ROWS[2] + HALF_R / 2)), module,
+                                              KI1H_ENVELOPE::OUT2));
 
   addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[0], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::ATK3_PARAM));
@@ -426,24 +426,24 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
                                                KI1H_ENVELOPE::SUS2_PARAM));
   addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[4], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::REL4_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
-                                           KI1H_ENVELOPE::TRIGGER3_INPUT));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0] + HALF_C, ROWS[3] - HALF_R / 2)),
+  addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
+                                              KI1H_ENVELOPE::TRIGGER3_INPUT));
+  addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[0] + HALF_C, ROWS[3] - HALF_R / 2)),
                                              module, KI1H_ENVELOPE::EOA3));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] + HALF_C, ROWS[3] - HALF_R / 2)),
+  addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[1] + HALF_C, ROWS[3] - HALF_R / 2)),
                                              module, KI1H_ENVELOPE::EOR3));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
-                                             KI1H_ENVELOPE::OUT3));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
-                                           KI1H_ENVELOPE::TRIGGER4_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[3], ROWS[5])), module,
+  addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
+                                              KI1H_ENVELOPE::OUT3));
+  addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
+                                              KI1H_ENVELOPE::TRIGGER4_INPUT));
+  addParam(createParamCentered<BefacoToggle>(mm2px(Vec(COLUMNS[3], ROWS[5])), module,
                                              KI1H_ENVELOPE::ASR2_SWITCH));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[3] - HALF_R / 2)),
+  addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[3] - HALF_R / 2)),
                                              module, KI1H_ENVELOPE::EOA4));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[3] - HALF_R / 2)),
+  addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[3] - HALF_R / 2)),
                                              module, KI1H_ENVELOPE::EOR4));
-  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
-                                             KI1H_ENVELOPE::OUT4));
+  addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
+                                              KI1H_ENVELOPE::OUT4));
 };
 
 Model *modelKI1H_ENVELOPE = createModel<KI1H_ENVELOPE, KI1H_ENVELOPEWidget>("KI1H-ENVELOPE");

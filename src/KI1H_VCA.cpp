@@ -251,9 +251,9 @@ KI1H_VCAWidget::KI1H_VCAWidget(KI1H_VCA *module) {
   // ============================================================================
   // VCA - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[0])), module,
+  addParam(createParamCentered<BefacoToggle>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[0])), module,
                                              KI1H_VCA::PAN_CV1));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
+  addParam(createParamCentered<BefacoToggle>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
                                              KI1H_VCA::PAN_CV2));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[0])), module,
                                              KI1H_VCA::LOUT));
@@ -267,8 +267,8 @@ KI1H_VCAWidget::KI1H_VCAWidget(KI1H_VCA *module) {
                                                  KI1H_VCA::MIX1 + i));
     addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[i], ROWS[4] - HALF_R)), module,
                                                  KI1H_VCA::PAN1 + i));
-    addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[4] + (HALF_R / 2))), module,
-                                             KI1H_VCA::CV1 + i));
+    addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[i], ROWS[4] + (HALF_R / 2))),
+                                               module, KI1H_VCA::CV1 + i));
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
                                              KI1H_VCA::IN1 + i));
   };

@@ -437,12 +437,12 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   // ============================================================================
   // OSCILLATOR 1 - INPUTS, CONTROLS & OUTPUT
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
-                                           KI1H_VCO::PITCH_INPUT));
+  addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
+                                             KI1H_VCO::PITCH_INPUT));
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
                                              KI1H_VCO::WAVE_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
-                                           KI1H_VCO::PW1_INPUT));
+  addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
+                                             KI1H_VCO::PW1_INPUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[1] - HALF_R)),
                                              module, KI1H_VCO::WAVE_OUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[2] - HALF_R)),
@@ -477,16 +477,16 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   // ============================================================================
   // OSCILLATOR 2 - INPUTS & WAVE CONTROL
   // ============================================================================
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
-                                           KI1H_VCO::PITCH2_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
+  addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
+                                             KI1H_VCO::PITCH2_INPUT));
+  addParam(createParamCentered<BefacoToggle>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
                                              KI1H_VCO::WAVE2_PARAM));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
-                                           KI1H_VCO::SHAPE_INPUT));
-  addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[2])), module, KI1H_VCO::FM_INPUT));
-  addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[3] - HALF_R)),
-                                           module, KI1H_VCO::AM_INPUT));
+  addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
+                                             KI1H_VCO::SHAPE_INPUT));
+  addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
+                                             KI1H_VCO::FM_INPUT));
+  addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[3] - HALF_R)),
+                                             module, KI1H_VCO::AM_INPUT));
 }
 
 Model *modelKI1H_VCO = createModel<KI1H_VCO, KI1H_VCOWidget>("KI1H-VCO");

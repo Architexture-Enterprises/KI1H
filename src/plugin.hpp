@@ -46,3 +46,34 @@ constexpr float getColumnPosition(int column) {
 constexpr std::array<float, NUM_COLUMNS> COLUMNS = {getColumnPosition(1), getColumnPosition(2),
                                                     getColumnPosition(3), getColumnPosition(4),
                                                     getColumnPosition(5)};
+
+struct BananutOrange : app::SvgPort {
+  BananutOrange() {
+    setSvg(Svg::load(asset::plugin(pluginInstance, "res/BananutOrange.svg")));
+  }
+};
+
+struct BananutRed : app::SvgPort {
+  BananutRed() {
+    setSvg(Svg::load(asset::plugin(pluginInstance, "res/BananutRed.svg")));
+  }
+};
+
+struct BananutBlue : app::SvgPort {
+  BananutBlue() {
+    setSvg(Svg::load(asset::plugin(pluginInstance, "res/BananutBlue.svg")));
+  }
+};
+
+struct BananutBlack : app::SvgPort {
+  BananutBlack() {
+    setSvg(Svg::load(asset::plugin(pluginInstance, "res/BananutBlack.svg")));
+  }
+};
+
+struct BefacoToggle : app::SvgSwitch {
+  BefacoToggle() {
+    addFrame(Svg::load(asset::system("res/ComponentLibrary/BefacoSwitch_0.svg")));
+    addFrame(Svg::load(asset::system("res/ComponentLibrary/BefacoSwitch_2.svg")));
+  }
+};

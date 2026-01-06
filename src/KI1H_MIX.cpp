@@ -191,8 +191,8 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
                                                  KI1H_MIX::MIX1 + i));
     addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[i], ROWS[4] - HALF_R)), module,
                                                  KI1H_MIX::ATT1 + i));
-    addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[4] + (HALF_R / 2))), module,
-                                             KI1H_MIX::CV1 + i));
+    addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[i], ROWS[4] + (HALF_R / 2))),
+                                               module, KI1H_MIX::CV1 + i));
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
                                              KI1H_MIX::IN1 + i));
   };
