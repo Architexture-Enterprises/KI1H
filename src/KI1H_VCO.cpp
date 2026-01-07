@@ -34,7 +34,7 @@ struct Oscillator {
 // RAW PURE WAVEFORM OSCILLATOR
 // ============================================================================
 struct RawOscillator : Oscillator {
-  void process(float pitch, float linFM, float pulseWidth, int waveType, float sampleTime);
+  void process(float pitch, float pulseWidth, int waveType, float sampleTime);
   float getSub() const {
     return sub;
   }
@@ -139,14 +139,11 @@ float Oscillator::generateSquare(float ph, float pw) {
 // ============================================================================
 // RAWOSCILLATOR CLASS
 // ============================================================================
-void RawOscillator::process(float pitch, float linFM, float pulseWidth, int waveType,
-                            float sampleTime) {
+void RawOscillator::process(float pitch, float pulseWidth, int waveType, float sampleTime) {
   float freq = calculateFreq(pitch);
+
   float subFreq = freq / 2.f;
   updatePhases(freq, sampleTime);
-
-  // Apply linear FM directly to frequency
-  freq += freq * linFM * 0.1f;
 
   sin = generateSine(phase);
 
@@ -192,10 +189,11 @@ float RawOscillator::generateSub(float ph) {
 void ShaperOscillator::process(float pitch, float linFM, float AM, float syncType, float syncVal,
                                float shape, int waveType, float sampleTime) {
   float freq = calculateFreq(pitch);
-  updatePhases(freq, sampleTime);
 
-  // Apply linear FM directly to frequency
+  // Apply linear FM directly to frequency BEFORE phase update
   freq += freq * linFM * 0.1f;
+
+  updatePhases(freq, sampleTime);
   // ============================================================================
   // SYNC PROCESSING
   // ============================================================================
@@ -335,7 +333,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 1 - PROCESS & OUTPUT
   // ============================================================================
-  osc1.process(pitch1, 0.f, pulseWidth1 + pwm1, waveType1, args.sampleTime);
+  osc1.process(pitch1, pulseWidth1 + pwm1, waveType1, args.sampleTime);
   outputs[WAVE_OUT].setVoltage(CV_SCALE * osc1.getOutput());
   outputs[SUB_OUT].setVoltage(CV_SCALE * osc1.getSub());
 
@@ -358,10 +356,10 @@ void KI1H_VCO::process(const ProcessArgs &args) {
     fmVal = osc1.getSin() * CV_SCALE;
 
   // FM mode switching: 0=linear, 1=off, 2=exponential
-  float linFM = 1.f;
-  if (fmSwitch == 0)
+  float linFM = 0.f;
+  if (fmSwitch == 0.f)
     linFM = fmVal * params[FM_PARAM].getValue();
-  if (fmSwitch == 2)
+  if (fmSwitch == 2.f)
     pitch2 += fmVal * params[FM_PARAM].getValue() * 0.2f;
 
   // ============================================================================
