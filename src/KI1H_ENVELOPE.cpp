@@ -294,7 +294,9 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   const bool ADSR1 = !inputs[TRIGGER2_INPUT].isConnected();
   float asr1TrigPulse = 0.f;
   if (ADSR1) {
-    asr1TrigPulse = outputs[EOA1].getVoltage();
+    // Internal chain: take AD1's end-of-attack straight from the envelope
+    // rather than reading back the output port we wrote a few lines up.
+    asr1TrigPulse = ad1.eoa * CV_SCALE;
   } else {
     asr1TrigPulse = inputs[TRIGGER2_INPUT].getVoltage();
   }
@@ -344,7 +346,8 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   const bool ADSR2 = !inputs[TRIGGER4_INPUT].isConnected();
   float asr2TrigPulse = 0.f;
   if (ADSR2) {
-    asr2TrigPulse = outputs[EOA3].getVoltage();
+    // Internal chain: same as ADSR1 above — read AD2's eoa directly.
+    asr2TrigPulse = ad2.eoa * CV_SCALE;
   } else {
     asr2TrigPulse = inputs[TRIGGER4_INPUT].getVoltage();
   }
