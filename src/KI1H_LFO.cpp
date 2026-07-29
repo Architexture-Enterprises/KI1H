@@ -28,7 +28,7 @@ struct LFO {
 // ============================================================================
 struct SampleAndHold : LFO {
 public:
-  void process(float pitch, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
+  void process(float oscPhase, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
                int waveType, float lagTime, float sampleTime);
   float getOutput() const override {
     return laggedOutput;
@@ -116,18 +116,17 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 // ============================================================================
 // SAMPLE AND HOLD PROCESS METHOD
 // ============================================================================
-void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float sampleIn,
+void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, float sampleIn,
                             bool sampInConn, int sWaveType, float lagTime, float sampleTime) {
-
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 
   float clockFreq = dsp::FREQ_C4 * std::pow(2.f, sampleRate);
   // ============================================================================
   // PHASE ACCUMULATION
   // ============================================================================
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
+  // The S&H oscillator runs at lfo2's pitch, so it takes lfo2's phase directly
+  // rather than accumulating a bit-identical copy of it (and paying a second
+  // pow per sample to do so). The clock phase below is genuinely independent.
+  phase = oscPhase;
 
   clockPhase += clockFreq * sampleTime;
   if (clockPhase >= 1.f)
@@ -302,7 +301,8 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   if (inputs[CLOCK_IN].isConnected())
     sRate = -1.f;
 
-  SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime);
+  // lfo2.process() above has already advanced lfo2.phase for this sample.
+  SNH.process(lfo2.phase, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime);
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
 
