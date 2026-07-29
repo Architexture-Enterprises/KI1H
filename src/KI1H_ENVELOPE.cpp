@@ -23,23 +23,47 @@ struct Envelope {
   float env = 0.f;
   float eoa = 0.f;
   float eor = 1.f;
-};
-
-struct ADEnvelope : Envelope {
 
   Stage stage = STAGE_OFF;
   float envState = 0.f;
   float attackTime = 0.1f, releaseTime = 0.1f;
 
-  ADEnvelope() {};
-
   void retrigger() {
     eoa = 0.f;
     eor = 1.f;
     stage = STAGE_ATTACK;
-
     env = envState = 0.f;
   }
+
+  /** Advances envState for the current stage. Shared by both subclasses; the
+  only stage that behaves differently between them is the transition logic,
+  which is processTransition's job. */
+  void evolveEnvelope(const float &sampleTime) {
+    switch (stage) {
+    case STAGE_ATTACK: {
+      envState += sampleTime / attackTime;
+      env = std::min(envState, 1.f);
+      break;
+    }
+    case STAGE_RELEASE: {
+      envState -= sampleTime / releaseTime;
+      env = std::max(0.f, envState);
+      break;
+    }
+    case STAGE_SUSTAIN: {
+      // Held at its current level; only ASDEnvelope ever reaches this.
+      break;
+    }
+    case STAGE_OFF: {
+      env = 0.0f;
+      break;
+    }
+    }
+  }
+};
+
+/** Attack then straight into release. Never reaches STAGE_SUSTAIN. */
+struct ADEnvelope : Envelope {
 
   void processTransition(const bool held) {
     if (stage == STAGE_ATTACK) {
@@ -62,48 +86,17 @@ struct ADEnvelope : Envelope {
     }
   }
 
-  void evolveEnvelope(const float &sampleTime) {
-    switch (stage) {
-    case STAGE_ATTACK: {
-      envState += sampleTime / attackTime;
-      env = std::min(envState, 1.f);
-      break;
-    }
-    case STAGE_RELEASE: {
-      envState -= sampleTime / releaseTime;
-      env = std::max(0.f, envState);
-      break;
-    }
-    case STAGE_OFF: {
-      env = 0.0f;
-      break;
-    }
-    case STAGE_SUSTAIN: {
-      break;
-    }
-    }
-  }
-
   void process(const float &sampleTime, const bool held) {
     processTransition(held);
     evolveEnvelope(sampleTime);
   }
 };
 
+/** Attack to a sustain level, hold there while gated (when asr is set), then
+release. The sustain stage is the only behavioural difference from AD. */
 struct ASDEnvelope : Envelope {
 
-  Stage stage = STAGE_OFF;
-  float envState = 0.f;
-  float attackTime = 0.1f, releaseTime = 0.1f, sustain = 1.f;
-
-  ASDEnvelope() {};
-
-  void retrigger() {
-    eoa = 0.f;
-    eor = 1.f;
-    stage = STAGE_ATTACK;
-    env = envState = 0.f;
-  }
+  float sustain = 1.f;
 
   void processTransition(const bool asr, const bool held) {
     if (stage == STAGE_ATTACK) {
@@ -128,29 +121,6 @@ struct ASDEnvelope : Envelope {
         stage = STAGE_OFF;
         env = envState = 0.f;
       }
-    }
-  }
-
-  void evolveEnvelope(const float &sampleTime) {
-    switch (stage) {
-    case STAGE_ATTACK: {
-      envState += sampleTime / attackTime;
-      env = std::min(envState, 1.f);
-      break;
-    }
-    case STAGE_RELEASE: {
-      envState -= sampleTime / releaseTime;
-      env = std::max(0.f, envState);
-      break;
-    }
-    case STAGE_SUSTAIN: {
-
-      break;
-    }
-    case STAGE_OFF: {
-      env = 0.0f;
-      break;
-    }
     }
   }
 
