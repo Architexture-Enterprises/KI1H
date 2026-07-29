@@ -4,6 +4,7 @@
 // ============================================================================
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
+#include "dsp.hpp"
 #include "plugin.hpp"
 #include <array>
 #include <numeric>
@@ -21,18 +22,6 @@ float softLimit(float input) {
     return input;
   }
 }
-
-// ============================================================================
-// CHANNEL CLASS DEFINITION
-// ============================================================================
-struct Channel {
-  void process(float input, float cvIn);
-  float getOutput() const {
-    return output;
-  };
-
-  float output = 0.f;
-};
 
 // ============================================================================
 // MIX CLASS DEFINITION
@@ -66,7 +55,7 @@ struct KI1H_MIX : Module {
   void process(const ProcessArgs &args) override;
 
 private:
-  Channel channels[5];
+  ki1h::Channel channels[5];
   Mix mix;
   float CV_SCALE = 5.f;
 };
@@ -76,15 +65,6 @@ private:
 // ============================================================================
 struct KI1H_MIXWidget : ModuleWidget {
   KI1H_MIXWidget(KI1H_MIX *module);
-};
-
-// ============================================================================
-// CHANNEL PROCESS METHOD
-// ============================================================================
-
-void Channel::process(float input, float cvIn) {
-  float ampd = input * cvIn;
-  output = softLimit(ampd);
 };
 
 // ============================================================================
