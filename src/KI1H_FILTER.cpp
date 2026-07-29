@@ -223,6 +223,11 @@ KI1H_FILTER::KI1H_FILTER() {
   // ============================================================================
   configParam(KI1H_FILTER::BigKnob, 0.f, 1.f, 0.f, "Frequency", " Hz", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::BIGKNOB_IN, "Linked Frequency");
+  // The two link toggles are deliberately opposite in polarity, matching the
+  // hardware panel: filter 1 links in its 0 position, filter 2 in its 1
+  // position. Both therefore default to position 0, which means filter 1
+  // starts linked to the big knob and filter 2 starts unlinked. This is not a
+  // copy-paste slip — do not "normalize" it without changing the panel too.
   auto filter1link = configSwitch(Filt1Link, 0.f, 1.f, 0.f, "Filter 1 Link", {"on", "off"});
   filter1link->snapEnabled = true;
   auto filter2link = configSwitch(Filt2Link, 0.f, 1.f, 0.f, "Filter 2 Link", {"off", "on"});
@@ -289,6 +294,7 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
     bigF += bigKnobMod * 1000.f;
     bigF = clamp(bigF, 0.f, bpfilter1.maxFreq);
   }
+  // Opposite polarity on purpose — see the configSwitch calls in the ctor.
   if (link1 == 0.f) {
     bp1Freq = clamp(bp1Freq + bigF, bpfilter1.minFreq, bpfilter1.maxFreq);
     lpFreq = clamp(lpFreq + bigF, lpfilter.minFreq, lpfilter.maxFreq);
