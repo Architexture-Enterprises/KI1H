@@ -174,6 +174,28 @@ void BPFilter::process(float input, float frequency, float width, float resonanc
 }
 
 // ============================================================================
+// CV MODULATION HELPERS
+// ============================================================================
+/** Adds a mod input's contribution to a cutoff frequency, in Hz per volt, and
+re-clamps to the filter's range. Returns base unchanged when nothing is
+patched.
+
+Takes Input by non-const reference because Rack does not const-qualify
+Input::isConnected() or Input::getVoltage(). */
+static float applyFreqMod(Input &in, float base, float minFreq, float maxFreq) {
+  if (!in.isConnected())
+    return base;
+  return clamp(base + in.getVoltage() * 1000.f, minFreq, maxFreq);
+}
+
+/** Scales a bandwidth by a bipolar mod input mapped from +/-5 V onto 0..1. */
+static float applyWidthMod(Input &in, float width) {
+  if (!in.isConnected())
+    return width;
+  return width * (in.getVoltage() + 5.f) / 10.f;
+}
+
+// ============================================================================
 // MODULE CONFIGURATION
 // ============================================================================
 KI1H_FILTER::KI1H_FILTER() {
@@ -251,44 +273,14 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
   float link1 = params[Filt1Link].getValue();
   float link2 = params[Filt2Link].getValue();
 
-  float lpMod = inputs[LPMOD_IN].getVoltage();
-  float bp1Mod = inputs[BPMOD1_IN].getVoltage();
-  float bp1WidthMod = inputs[BPWIDTH1_IN].getVoltage();
-  float bp2Mod = inputs[BPMOD2_IN].getVoltage();
-  float bp2WidthMod = inputs[BPWIDTH2_IN].getVoltage();
-  float hpMod = inputs[HPMOD_IN].getVoltage();
-  float bigKnobMod = inputs[BIGKNOB_IN].getVoltage();
+  lpFreq = applyFreqMod(inputs[LPMOD_IN], lpFreq, lpfilter.minFreq, lpfilter.maxFreq);
+  bp1Freq = applyFreqMod(inputs[BPMOD1_IN], bp1Freq, bpfilter1.minFreq, bpfilter1.maxFreq);
+  bp2Freq = applyFreqMod(inputs[BPMOD2_IN], bp2Freq, bpfilter2.minFreq, bpfilter2.maxFreq);
+  hpFreq = applyFreqMod(inputs[HPMOD_IN], hpFreq, hpfilter.minFreq, hpfilter.maxFreq);
+  bigF = applyFreqMod(inputs[BIGKNOB_IN], bigF, 0.f, bpfilter1.maxFreq);
 
-  if (inputs[LPMOD_IN].isConnected()) {
-    lpFreq += lpMod * 1000.f;
-    lpFreq = clamp(lpFreq, lpfilter.minFreq, lpfilter.maxFreq);
-  }
-
-  if (inputs[BPMOD1_IN].isConnected()) {
-    bp1Freq += bp1Mod * 1000.f;
-    bp1Freq = clamp(bp1Freq, bpfilter1.minFreq, bpfilter1.maxFreq);
-  }
-
-  if (inputs[BPWIDTH1_IN].isConnected())
-    bp1Width *= (bp1WidthMod + 5.f) / 10.f;
-
-  if (inputs[BPMOD2_IN].isConnected()) {
-    bp2Freq += bp2Mod * 1000.f;
-    bp2Freq = clamp(bp2Freq, bpfilter2.minFreq, bpfilter2.maxFreq);
-  }
-
-  if (inputs[BPWIDTH2_IN].isConnected())
-    bp2Width *= (bp2WidthMod + 5.f) / 10.f;
-
-  if (inputs[HPMOD_IN].isConnected()) {
-    hpFreq += hpMod * 1000.f;
-    hpFreq = clamp(hpFreq, hpfilter.minFreq, hpfilter.maxFreq);
-  }
-
-  if (inputs[BIGKNOB_IN].isConnected()) {
-    bigF += bigKnobMod * 1000.f;
-    bigF = clamp(bigF, 0.f, bpfilter1.maxFreq);
-  }
+  bp1Width = applyWidthMod(inputs[BPWIDTH1_IN], bp1Width);
+  bp2Width = applyWidthMod(inputs[BPWIDTH2_IN], bp2Width);
   if (link1 == 0.f) {
     bp1Freq = clamp(bp1Freq + bigF, bpfilter1.minFreq, bpfilter1.maxFreq);
     lpFreq = clamp(lpFreq + bigF, lpfilter.minFreq, lpfilter.maxFreq);
