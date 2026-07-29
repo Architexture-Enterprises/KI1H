@@ -4,6 +4,7 @@
 // ============================================================================
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
+#include "dsp.hpp"
 #include "plugin.hpp"
 #include <algorithm>
 #include <array>
@@ -14,16 +15,6 @@
 // UTILITY FUNCTIONS
 // ============================================================================
 namespace {
-float softLimit(float input) {
-  if (fabs(input) > 5.2f) {
-    float sign = (input >= 0) ? 1.0f : -1.0f;
-    float excess = fabs(input) - 5.2f;
-    return sign * (5.2f + excess * exp(-excess * 2.0f));
-  } else {
-    return input;
-  }
-}
-
 // ============================================================================
 // CHANNEL CLASS DEFINITION
 // ============================================================================
@@ -97,7 +88,7 @@ struct KI1H_VCAWidget : ModuleWidget {
 void Channel::process(float input, float cvIn) {
   // CV is unipolar (0-1 range), acts as gain
   float ampd = input * cvIn;
-  output = softLimit(ampd);
+  output = ki1h::softLimit(ampd);
 };
 
 // ============================================================================
@@ -125,8 +116,8 @@ void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
     rightSum += channels[i] * rightGain;
   }
 
-  leftOut = softLimit(leftSum);
-  rightOut = softLimit(rightSum);
+  leftOut = ki1h::softLimit(leftSum);
+  rightOut = ki1h::softLimit(rightSum);
 };
 
 // ============================================================================

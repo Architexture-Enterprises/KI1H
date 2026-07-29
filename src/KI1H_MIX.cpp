@@ -4,23 +4,11 @@
 // ============================================================================
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
+#include "dsp.hpp"
 #include "plugin.hpp"
 #include <array>
 #include <numeric>
 #include <string>
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-float softLimit(float input) {
-  if (fabs(input) > 5.2f) {
-    float sign = (input >= 0) ? 1.0f : -1.0f;
-    float excess = fabs(input) - 5.2f;
-    return sign * (5.2f + excess * exp(-excess * 2.0f));
-  } else {
-    return input;
-  }
-}
 
 // ============================================================================
 // CHANNEL CLASS DEFINITION
@@ -84,7 +72,7 @@ struct KI1H_MIXWidget : ModuleWidget {
 
 void Channel::process(float input, float cvIn) {
   float ampd = input * cvIn;
-  output = softLimit(ampd);
+  output = ki1h::softLimit(ampd);
 };
 
 // ============================================================================
@@ -99,9 +87,9 @@ void Mix::process(std::array<float, 5> all) {
     else
       evens[i / 2] = all[i];
   }
-  allOut = softLimit(std::accumulate(all.begin(), all.end(), 0.0f));
-  leftOut = softLimit(std::accumulate(odds.begin(), odds.end(), 0.0f));
-  rightOut = softLimit(std::accumulate(evens.begin(), evens.end(), 0.0f));
+  allOut = ki1h::softLimit(std::accumulate(all.begin(), all.end(), 0.0f));
+  leftOut = ki1h::softLimit(std::accumulate(odds.begin(), odds.end(), 0.0f));
+  rightOut = ki1h::softLimit(std::accumulate(evens.begin(), evens.end(), 0.0f));
 };
 
 // ============================================================================
