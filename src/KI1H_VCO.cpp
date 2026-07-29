@@ -51,7 +51,7 @@ struct RawOscillator : Oscillator {
 // WAVESHAPING OSCILLATOR
 // ============================================================================
 struct ShaperOscillator : Oscillator {
-  void process(float pitch, float linFM, float am, float softSync, float hardSync, float shape,
+  void process(float pitch, float linFM, float am, int syncType, float syncVal, float shape,
                int waveType, float sampleTime);
 
   float generateShapedWave(float ph, float shape);
@@ -186,7 +186,7 @@ float RawOscillator::generateSub(float ph) {
 // ============================================================================
 // SHAPEROSCILLATOR CLASS
 // ============================================================================
-void ShaperOscillator::process(float pitch, float linFM, float AM, float syncType, float syncVal,
+void ShaperOscillator::process(float pitch, float linFM, float AM, int syncType, float syncVal,
                                float shape, int waveType, float sampleTime) {
   float freq = calculateFreq(pitch);
 
@@ -198,7 +198,7 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
   // SYNC PROCESSING
   // ============================================================================
   // Hard sync - digital reset when sync signal crosses threshold
-  if (syncType == 2.f) {
+  if (syncType == 2) {
     if (syncTrigger.process(syncVal)) {
       phase = 0.f;
     }
@@ -206,7 +206,7 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
 
   // Soft sync - analog-modeled continuous phase pulling
   // The sync signal creates a "force" that pulls the phase toward reset
-  if (syncType == 0.f) {
+  if (syncType == 0) {
     float syncPull = 0.f;
     if (syncVal > 0.1f) { // Only pull when sync signal is above noise floor
       // Create exponential pull force - stronger as phase increases
@@ -357,9 +357,9 @@ void KI1H_VCO::process(const ProcessArgs &args) {
 
   // FM mode switching: 0=linear, 1=off, 2=exponential
   float linFM = 0.f;
-  if (fmSwitch == 0.f)
+  if (fmSwitch == 0)
     linFM = fmVal * params[FM_PARAM].getValue();
-  if (fmSwitch == 2.f)
+  if (fmSwitch == 2)
     pitch2 += fmVal * params[FM_PARAM].getValue() * 0.2f;
 
   // ============================================================================
