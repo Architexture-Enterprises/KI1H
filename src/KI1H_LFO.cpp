@@ -1,5 +1,4 @@
 #include "plugin.hpp"
-#include "random"
 
 // ============================================================================
 // LFO CLASS DEFINITION

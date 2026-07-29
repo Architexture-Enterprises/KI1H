@@ -2,12 +2,9 @@
 // ============================================================================
 // INCLUDES & GLOBAL VARIABLES
 // ============================================================================
-#include "componentlibrary.hpp"
-#include "helpers.hpp"
 #include "plugin.hpp"
 #include <algorithm>
 #include <array>
-#include <numeric>
 #include <string>
 
 // ============================================================================
