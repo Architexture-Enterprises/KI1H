@@ -3,7 +3,7 @@
 
 struct KAOS {
 public:
-  void process(float color, float bkIn, float pkIn);
+  void process(float color, float bkIn, bool bkConn, float pkIn, bool pkConn);
   float getNoise() const {
     return noise;
   }
@@ -31,7 +31,7 @@ public:
   float generatePinkNoise(float whiteNoise);
 };
 
-void KAOS::process(float color, float bkIn, float pkIn) {
+void KAOS::process(float color, float bkIn, bool bkConn, float pkIn, bool pkConn) {
   // Generate proper white, brown, and pink noise
   float wNoise = generateNoise(noise);
   float brownNoise = generateBrownNoise(wNoise);
@@ -55,14 +55,15 @@ void KAOS::process(float color, float bkIn, float pkIn) {
 
   noise = brownLvl * brownNoise + pinkLvl * pinkNoise + whiteLvl * wNoise;
 
-  if (pkIn != -99.f)
+  if (pkConn)
     if (pKaosTrigger.process(pkIn)) {
       pKaosOut = pinkNoise;
-      if (bkIn == -99.f)
+      // With no dedicated chaos-2 trigger patched, chaos 2 follows chaos 1.
+      if (!bkConn)
         bKaosOut = brownNoise;
     }
 
-  if (bkIn != -99.f)
+  if (bkConn)
     if (bKaosTrigger.process(bkIn))
       bKaosOut = brownNoise;
 };
@@ -136,9 +137,10 @@ KI1H_KAOS::KI1H_KAOS() {
 
 void KI1H_KAOS::process(const ProcessArgs &args) {
   float color = params[NOISE_PARAM].getValue();
-  float bkIn = inputs[BKAOS_IN].isConnected() ? inputs[BKAOS_IN].getVoltage() : -99.f;
-  float pkIn = inputs[PKAOS_IN].isConnected() ? inputs[PKAOS_IN].getVoltage() : -99.f;
-  KAOS.process(color, bkIn, pkIn);
+  const bool bkConn = inputs[BKAOS_IN].isConnected();
+  const bool pkConn = inputs[PKAOS_IN].isConnected();
+  KAOS.process(color, inputs[BKAOS_IN].getVoltage(), bkConn, inputs[PKAOS_IN].getVoltage(),
+               pkConn);
   outputs[NOISE_OUT].setVoltage(KAOS.getNoise());
   if (outputs[PKAOS_OUT].isConnected())
     outputs[PKAOS_OUT].setVoltage(KAOS.getpKaos());
