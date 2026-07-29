@@ -84,7 +84,7 @@ struct KI1H_LFOWidget : ModuleWidget {
 };
 void LFO::process(float pitch, int waveType, float sampleTime) {
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  float freq = dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
 
   // ============================================================================
   // PHASE ACCUMULATION
@@ -119,9 +119,9 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float sampleIn,
                             bool sampInConn, int sWaveType, float lagTime, float sampleTime) {
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  float freq = dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
 
-  float clockFreq = dsp::FREQ_C4 * std::pow(2.f, sampleRate);
+  float clockFreq = dsp::FREQ_C4 * dsp::exp2_taylor5(sampleRate);
   // ============================================================================
   // PHASE ACCUMULATION
   // ============================================================================
