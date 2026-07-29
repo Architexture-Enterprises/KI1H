@@ -231,16 +231,16 @@ struct KI1H_ENVELOPEWidget : ModuleWidget {
 // ============================================================================
 KI1H_ENVELOPE::KI1H_ENVELOPE() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS);
-  configParam(ATK1_PARAM, 0.1f, 1.f, 0.1f, "AD1 Attack");
-  configParam(ATK2_PARAM, 0.1f, 1.f, 0.1f, "ASD1 Attack");
-  configParam(ATK3_PARAM, 0.1f, 1.f, 0.1f, "AD2 Attack");
-  configParam(ATK4_PARAM, 0.1f, 1.f, 0.1f, "ASD2 Attack");
-  configParam(REL1_PARAM, 0.1f, 1.f, 0.1f, "AD1 Release");
-  configParam(REL2_PARAM, 0.1f, 1.f, 0.1f, "ASD1 Release");
-  configParam(REL3_PARAM, 0.1f, 1.f, 0.1f, "AD2 Release");
-  configParam(REL4_PARAM, 0.1f, 1.f, 0.1f, "ASD2 Release");
-  configParam(SUS_PARAM, 0.1f, 1.f, 0.1f, "Sustain");
-  configParam(SUS2_PARAM, 0.1f, 1.f, 0.1f, "Sustain2");
+  configParam(ATK1_PARAM, 0.f, 1.f, 0.1f, "AD1 Attack");
+  configParam(ATK2_PARAM, 0.f, 1.f, 0.1f, "ASD1 Attack");
+  configParam(ATK3_PARAM, 0.f, 1.f, 0.1f, "AD2 Attack");
+  configParam(ATK4_PARAM, 0.f, 1.f, 0.1f, "ASD2 Attack");
+  configParam(REL1_PARAM, 0.f, 1.f, 0.1f, "AD1 Release");
+  configParam(REL2_PARAM, 0.f, 1.f, 0.1f, "ASD1 Release");
+  configParam(REL3_PARAM, 0.f, 1.f, 0.1f, "AD2 Release");
+  configParam(REL4_PARAM, 0.f, 1.f, 0.1f, "ASD2 Release");
+  configParam(SUS_PARAM, 0.f, 1.f, 0.1f, "Sustain");
+  configParam(SUS2_PARAM, 0.f, 1.f, 0.1f, "Sustain2");
   configParam(ASR1_SWITCH, 0.f, 1.f, 0.f, "AR/ASR Switch1");
   configParam(ASR2_SWITCH, 0.f, 1.f, 0.f, "AR/ASR Switch2");
   configInput(TRIGGER1_INPUT, "AD1 Trigger");
@@ -269,9 +269,9 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
 // ============================================================================
 
 void KI1H_ENVELOPE::process(const ProcessArgs &args) {
-  const float atk1Lvl = clamp(params[ATK1_PARAM].getValue(), 0.f, 1.f);
+  const float atk1Lvl = params[ATK1_PARAM].getValue();
   ad1.attackTime = convertCVToTimeInSeconds(atk1Lvl);
-  const float rls1Lvl = clamp(params[REL1_PARAM].getValue(), 0.f, 1.f);
+  const float rls1Lvl = params[REL1_PARAM].getValue();
   ad1.releaseTime = convertCVToTimeInSeconds(rls1Lvl);
   const bool triggered1 = gateTrigger1.process(inputs[TRIGGER1_INPUT].getVoltage());
   const bool ad1held = gateTrigger1.isHigh();
@@ -285,11 +285,11 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   outputs[EOA1].setVoltage(ad1.eoa * CV_SCALE);
   outputs[EOR1].setVoltage(ad1.eor * CV_SCALE);
 
-  const float atk2Lvl = clamp(params[ATK2_PARAM].getValue(), 0.f, 1.f);
+  const float atk2Lvl = params[ATK2_PARAM].getValue();
   asd1.attackTime = convertCVToTimeInSeconds(atk2Lvl);
-  const float susLvl = clamp(params[SUS_PARAM].getValue(), 0.f, 1.f);
+  const float susLvl = params[SUS_PARAM].getValue();
   asd1.sustain = susLvl;
-  const float rls2Lvl = clamp(params[REL2_PARAM].getValue(), 0.f, 1.f);
+  const float rls2Lvl = params[REL2_PARAM].getValue();
   asd1.releaseTime = convertCVToTimeInSeconds(rls2Lvl);
   const bool ADSR1 = !inputs[TRIGGER2_INPUT].isConnected();
   float asr1TrigPulse = 0.f;
@@ -319,9 +319,9 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   outputs[EOA2].setVoltage(asd1.eoa * CV_SCALE);
   outputs[EOR2].setVoltage(asd1.eor * CV_SCALE);
 
-  const float atk3Lvl = clamp(params[ATK3_PARAM].getValue(), 0.f, 1.f);
+  const float atk3Lvl = params[ATK3_PARAM].getValue();
   ad2.attackTime = convertCVToTimeInSeconds(atk3Lvl);
-  const float rls3Lvl = clamp(params[REL3_PARAM].getValue(), 0.f, 1.f);
+  const float rls3Lvl = params[REL3_PARAM].getValue();
   ad2.releaseTime = convertCVToTimeInSeconds(rls3Lvl);
   const bool triggered3 = gateTrigger3.process(inputs[TRIGGER3_INPUT].getVoltage());
   const bool ad2held = gateTrigger3.isHigh();
@@ -335,11 +335,11 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   outputs[EOA3].setVoltage(ad2.eoa * CV_SCALE);
   outputs[EOR3].setVoltage(ad2.eor * CV_SCALE);
 
-  const float atk4Lvl = clamp(params[ATK4_PARAM].getValue(), 0.f, 1.f);
+  const float atk4Lvl = params[ATK4_PARAM].getValue();
   asd2.attackTime = convertCVToTimeInSeconds(atk4Lvl);
-  const float sus2Lvl = clamp(params[SUS2_PARAM].getValue(), 0.f, 1.f);
+  const float sus2Lvl = params[SUS2_PARAM].getValue();
   asd2.sustain = sus2Lvl;
-  const float rls4Lvl = clamp(params[REL4_PARAM].getValue(), 0.f, 1.f);
+  const float rls4Lvl = params[REL4_PARAM].getValue();
   asd2.releaseTime = convertCVToTimeInSeconds(rls4Lvl);
   const bool ADSR2 = !inputs[TRIGGER4_INPUT].isConnected();
   float asr2TrigPulse = 0.f;
