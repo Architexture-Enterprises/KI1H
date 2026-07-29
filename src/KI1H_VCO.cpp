@@ -1,6 +1,7 @@
 // ============================================================================
 // INCLUDES & GLOBAL VARIABLES
 // ============================================================================
+#include "dsp.hpp"
 #include "plugin.hpp"
 
 dsp::SchmittTrigger syncTrigger;
@@ -19,7 +20,7 @@ struct Oscillator {
     return sin;
   }
 
-  float phase = 0.f;
+  ki1h::Phasor phase;
   float output = 0.f;
   float blinkPhase = 0.f;
   float sin = 0.f;
@@ -39,7 +40,7 @@ struct RawOscillator : Oscillator {
     return sub;
   }
 
-  float subPhase = 0.f;
+  ki1h::Phasor subPhase;
   float sub = 0.f;
 
   float generateTriangle(float ph);
@@ -116,11 +117,8 @@ float Oscillator::calculateFreq(float pitch) {
 }
 
 void Oscillator::updatePhases(float freq, float sampleTime) {
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
-
-  blinkPhase = phase;
+  phase.advance(freq, sampleTime);
+  blinkPhase = phase.phase;
 }
 
 float Oscillator::generateSine(float ph) {
@@ -145,23 +143,21 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
   float subFreq = freq / 2.f;
   updatePhases(freq, sampleTime);
 
-  sin = generateSine(phase);
+  sin = generateSine(phase.phase);
 
-  subPhase += subFreq * sampleTime;
-  if (subPhase >= 1.f)
-    subPhase -= 1.f;
+  subPhase.advance(subFreq, sampleTime);
 
-  sub = generateSub(subPhase);
+  sub = generateSub(subPhase.phase);
 
   switch (waveType) {
   case 0:
-    output = generateTriangle(phase);
+    output = generateTriangle(phase.phase);
     break;
   case 1:
-    output = generateSaw(phase);
+    output = generateSaw(phase.phase);
     break;
   case 2:
-    output = generateSquare(phase, pulseWidth);
+    output = generateSquare(phase.phase, pulseWidth);
     break;
   default:
     output = 0.f;
@@ -200,7 +196,7 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
   // Hard sync - digital reset when sync signal crosses threshold
   if (syncType == 2.f) {
     if (syncTrigger.process(syncVal)) {
-      phase = 0.f;
+      phase.reset();
     }
   }
 
@@ -211,25 +207,26 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
     if (syncVal > 0.1f) { // Only pull when sync signal is above noise floor
       // Create exponential pull force - stronger as phase increases
       float pullStrength = syncVal * 0.2f;     // Scale sync signal
-      syncPull = pullStrength * phase * phase; // Quadratic pull (gets stronger near end of cycle)
+      // Quadratic pull (gets stronger near end of cycle)
+      syncPull = pullStrength * phase.phase * phase.phase;
 
       // Pull phase backward toward 0, creating the chaotic analog behavior
-      phase -= syncPull * sampleTime * freq;
+      phase.phase -= syncPull * sampleTime * freq;
 
       // Prevent phase from going negative
-      if (phase < 0.f)
-        phase = 0.f;
+      if (phase.phase < 0.f)
+        phase.reset();
     }
   }
 
-  sin = generateSine(phase);
+  sin = generateSine(phase.phase);
 
   switch (waveType) {
   case 0:
-    output = generateShapedWave(phase, shape);
+    output = generateShapedWave(phase.phase, shape);
     break;
   case 1:
-    output = generateSquare(phase, shape);
+    output = generateSquare(phase.phase, shape);
     break;
   default:
     output = 0.f;

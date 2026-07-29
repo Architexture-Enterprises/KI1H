@@ -1,3 +1,4 @@
+#include "dsp.hpp"
 #include "plugin.hpp"
 #include "random"
 
@@ -10,11 +11,11 @@ struct LFO {
     return output;
   };
   float getBlink() const {
-    return phase;
+    return phase.phase;
   }
 
   float output = 0.f;
-  float phase = 0.f;
+  ki1h::Phasor phase;
 
   float generateSine(float phase);
   float generateTriangle(float phase);
@@ -37,10 +38,10 @@ public:
     return clockOutput;
   };
   float getBlink() const {
-    return clockPhase;
+    return clockPhase.phase;
   };
 
-  float clockPhase = 0.f;
+  ki1h::Phasor clockPhase;
   float sampledValue = 0.f;
   float laggedOutput = 0.f;
   float clockOutput = 0.f;
@@ -90,9 +91,7 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   // PHASE ACCUMULATION
   // ============================================================================
   // Normal phase accumulation
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
+  phase.advance(freq, sampleTime);
 
   // ============================================================================
   // WAVEFORM GENERATION
@@ -100,13 +99,13 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   // Generate waveform based on type
   switch (waveType) {
   case 0:
-    output = generateSine(phase);
+    output = generateSine(phase.phase);
     break;
   case 1:
-    output = generateSaw(phase);
+    output = generateSaw(phase.phase);
     break;
   case 2:
-    output = generateSquare(phase);
+    output = generateSquare(phase.phase);
     break;
   default:
     output = 0.f;
@@ -125,13 +124,8 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   // ============================================================================
   // PHASE ACCUMULATION
   // ============================================================================
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
-
-  clockPhase += clockFreq * sampleTime;
-  if (clockPhase >= 1.f)
-    clockPhase -= 1.f;
+  phase.advance(freq, sampleTime);
+  clockPhase.advance(clockFreq, sampleTime);
 
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
@@ -139,13 +133,13 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   // Generate S&H waveforms (different from regular LFO waveforms)
   switch (sWaveType) {
   case 0:
-    output = generateSaw(phase);
+    output = generateSaw(phase.phase);
     break;
   case 1:
-    output = generateRamp(phase);
+    output = generateRamp(phase.phase);
     break;
   case 2:
-    output = generateTriangle(phase);
+    output = generateTriangle(phase.phase);
     break;
   default:
     output = 0.f;
@@ -154,7 +148,7 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   if (sampleRate == -1)
     clockOutput = clockIn;
   else
-    clockOutput = generateSquare(clockPhase);
+    clockOutput = generateSquare(clockPhase.phase);
   // ============================================================================
   // SAMPLE ON TRIGGER RISING EDGE
   // ============================================================================
