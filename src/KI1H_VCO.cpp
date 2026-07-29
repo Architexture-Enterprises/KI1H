@@ -3,8 +3,6 @@
 // ============================================================================
 #include "plugin.hpp"
 
-dsp::SchmittTrigger syncTrigger;
-
 // ============================================================================
 // OSCILLATOR BASE CLASS
 // ============================================================================
@@ -55,6 +53,10 @@ struct ShaperOscillator : Oscillator {
                int waveType, float sampleTime);
 
   float generateShapedWave(float ph, float shape);
+
+  // Per-instance: the engine runs modules across worker threads, so a shared
+  // trigger would both steal edges between VCOs and race on its own state.
+  dsp::SchmittTrigger syncTrigger;
 };
 
 // ============================================================================
