@@ -96,8 +96,8 @@ struct KI1H_VCO : Module {
 private:
   RawOscillator osc1;
   ShaperOscillator osc2;
-  float CV_SCALE = 5.f;
-  float PWM_OFFSET = 5.5f;
+  static constexpr float CV_SCALE = 5.f;
+  static constexpr float PWM_OFFSET = 5.5f;
 };
 
 // ============================================================================

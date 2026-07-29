@@ -210,7 +210,7 @@ struct KI1H_ENVELOPE : Module {
 private:
   ADEnvelope ad1, ad2;
   ASDEnvelope asd1, asd2;
-  float CV_SCALE = 10.f;
+  static constexpr float CV_SCALE = 10.f;
 };
 
 // ============================================================================
