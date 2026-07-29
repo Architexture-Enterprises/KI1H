@@ -387,15 +387,15 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
   addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
   addChild(createWidget<ScrewBlack>(
       Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
                                                KI1H_ENVELOPE::ATK1_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
                                                KI1H_ENVELOPE::REL1_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                                KI1H_ENVELOPE::ATK2_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[3], ROWS[1])), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[3], ROWS[1])), module,
                                                KI1H_ENVELOPE::SUS_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[4], ROWS[1])), module,
                                                KI1H_ENVELOPE::REL2_PARAM));
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[2] + HALF_R / 2)), module,
                                               KI1H_ENVELOPE::TRIGGER1_INPUT));
@@ -416,15 +416,15 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[4], ROWS[2] + HALF_R / 2)), module,
                                               KI1H_ENVELOPE::OUT2));
 
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[0], ROWS[4] - HALF_R / 2)), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[0], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::ATK3_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[1], ROWS[4] - HALF_R / 2)), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[1], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::REL3_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[2], ROWS[4] - HALF_R / 2)), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[2], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::ATK4_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[3], ROWS[4] - HALF_R / 2)), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[3], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::SUS2_PARAM));
-  addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[4], ROWS[4] - HALF_R / 2)), module,
+  addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[4], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::REL4_PARAM));
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
                                               KI1H_ENVELOPE::TRIGGER3_INPUT));
