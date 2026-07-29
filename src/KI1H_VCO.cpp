@@ -3,6 +3,12 @@
 // ============================================================================
 #include "plugin.hpp"
 
+// Waveform switch positions. Order must match the configSwitch label lists in
+// the constructor: WAVE_PARAM {"Triangle", "Sawtooth", "Pulse"} and
+// WAVE2_PARAM {"Sin-Saw", "Pulse"}.
+enum Waves { WAVE_TRI, WAVE_SAW, WAVE_SQ };
+enum ShaperWaves { SHAPER_SINSAW, SHAPER_PULSE };
+
 dsp::SchmittTrigger syncTrigger;
 
 // ============================================================================
@@ -88,7 +94,6 @@ struct KI1H_VCO : Module {
   };
   enum OutputIds { WAVE_OUT, WAVE2_OUT, SUB_OUT, NUM_OUTPUTS };
   enum LightIds { BLINK1_LIGHT, BLINK2_LIGHT, NUM_LIGHTS };
-  enum Waves { WAVE_TRI, WAVE_SAW, WAVE_SQ, WAVE_PWM };
 
   KI1H_VCO();
   void process(const ProcessArgs &args) override;
@@ -154,13 +159,13 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
   sub = generateSub(subPhase);
 
   switch (waveType) {
-  case 0:
+  case WAVE_TRI:
     output = generateTriangle(phase);
     break;
-  case 1:
+  case WAVE_SAW:
     output = generateSaw(phase);
     break;
-  case 2:
+  case WAVE_SQ:
     output = generateSquare(phase, pulseWidth);
     break;
   default:
@@ -225,10 +230,10 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
   sin = generateSine(phase);
 
   switch (waveType) {
-  case 0:
+  case SHAPER_SINSAW:
     output = generateShapedWave(phase, shape);
     break;
-  case 1:
+  case SHAPER_PULSE:
     output = generateSquare(phase, shape);
     break;
   default:

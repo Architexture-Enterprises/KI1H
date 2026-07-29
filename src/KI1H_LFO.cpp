@@ -1,4 +1,10 @@
 #include "plugin.hpp"
+
+// Waveform switch positions. Order must match the configSwitch label lists in
+// the constructor: WAVE1_PARAM / WAVE2_PARAM {"Sine", "Sawtooth", "Pulse"} and
+// SWAVE_PARAM {"Sawtooth", "Ramp", "Triangle"}.
+enum LFOWaves { LFO_SINE, LFO_SAW, LFO_SQUARE };
+enum SHWaves { SH_SAW, SH_RAMP, SH_TRIANGLE };
 #include "random"
 
 // ============================================================================
@@ -99,13 +105,13 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   // ============================================================================
   // Generate waveform based on type
   switch (waveType) {
-  case 0:
+  case LFO_SINE:
     output = generateSine(phase);
     break;
-  case 1:
+  case LFO_SAW:
     output = generateSaw(phase);
     break;
-  case 2:
+  case LFO_SQUARE:
     output = generateSquare(phase);
     break;
   default:
@@ -138,13 +144,13 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   // ============================================================================
   // Generate S&H waveforms (different from regular LFO waveforms)
   switch (sWaveType) {
-  case 0:
+  case SH_SAW:
     output = generateSaw(phase);
     break;
-  case 1:
+  case SH_RAMP:
     output = generateRamp(phase);
     break;
-  case 2:
+  case SH_TRIANGLE:
     output = generateTriangle(phase);
     break;
   default:
