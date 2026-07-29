@@ -10,3 +10,7 @@
 /build
 /dep
 /dist
+
+# Test binary and its debug bundle
+/tests/run_tests
+/tests/run_tests.dSYM/
