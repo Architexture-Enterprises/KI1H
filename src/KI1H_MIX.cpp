@@ -1,7 +1,3 @@
-
-// ============================================================================
-// INCLUDES & GLOBAL VARIABLES
-// ============================================================================
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
 #include "plugin.hpp"
@@ -9,9 +5,6 @@
 #include <numeric>
 #include <string>
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
 float softLimit(float input) {
   if (fabs(input) > 5.2f) {
     float sign = (input >= 0) ? 1.0f : -1.0f;
@@ -123,10 +116,6 @@ KI1H_MIX::KI1H_MIX() {
   configOutput(LOUT, "Odds");
   configOutput(ROUT, "Evens");
 };
-
-// ============================================================================
-// CHANNELS - PARAMETER CONFIGURATION
-// ============================================================================
 
 void KI1H_MIX::process(const ProcessArgs &args) {
   std::array<float, 5> all;

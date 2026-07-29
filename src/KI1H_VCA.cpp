@@ -1,7 +1,3 @@
-
-// ============================================================================
-// INCLUDES & GLOBAL VARIABLES
-// ============================================================================
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
 #include "plugin.hpp"
@@ -150,10 +146,6 @@ KI1H_VCA::KI1H_VCA() {
   configOutput(LOUT, "Left");
   configOutput(ROUT, "Right");
 };
-
-// ============================================================================
-// CHANNELS - PARAMETER CONFIGURATION
-// ============================================================================
 
 void KI1H_VCA::process(const ProcessArgs &args) {
   std::array<float, 5> channelOutputs;
