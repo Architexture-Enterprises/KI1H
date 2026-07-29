@@ -1,6 +1,7 @@
 // ============================================================================
 // INCLUDES & GLOBAL VARIABLES
 // ============================================================================
+#include "dsp.hpp"
 #include "plugin.hpp"
 
 dsp::SchmittTrigger syncTrigger;
@@ -26,8 +27,6 @@ struct Oscillator {
 
   void updatePhases(float freq, float sampleTime);
   float calculateFreq(float pitch);
-  float generateSine(float ph);
-  float generateSquare(float ph, float pw);
 };
 
 // ============================================================================
@@ -42,9 +41,6 @@ struct RawOscillator : Oscillator {
   float subPhase = 0.f;
   float sub = 0.f;
 
-  float generateTriangle(float ph);
-  float generateSaw(float ph);
-  float generateSub(float ph);
 };
 
 // ============================================================================
@@ -123,19 +119,6 @@ void Oscillator::updatePhases(float freq, float sampleTime) {
   blinkPhase = phase;
 }
 
-float Oscillator::generateSine(float ph) {
-  return std::sin(2.f * M_PI * ph);
-}
-
-float Oscillator::generateSquare(float ph, float pw) {
-  // Clamp pulse width to prevent extreme values
-  if (pw > 0.9f)
-    pw = 0.9f;
-  if (pw < 0.1f)
-    pw = 0.1f;
-  return (ph > pw) ? -1.f : 1.f;
-}
-
 // ============================================================================
 // RAWOSCILLATOR CLASS
 // ============================================================================
@@ -145,42 +128,27 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
   float subFreq = freq / 2.f;
   updatePhases(freq, sampleTime);
 
-  sin = generateSine(phase);
+  sin = ki1h::sine(phase);
 
   subPhase += subFreq * sampleTime;
   if (subPhase >= 1.f)
     subPhase -= 1.f;
 
-  sub = generateSub(subPhase);
+  sub = ki1h::square(subPhase);
 
   switch (waveType) {
   case 0:
-    output = generateTriangle(phase);
+    output = ki1h::triangle(phase);
     break;
   case 1:
-    output = generateSaw(phase);
+    output = ki1h::saw(phase);
     break;
   case 2:
-    output = generateSquare(phase, pulseWidth);
+    output = ki1h::square(phase, pulseWidth);
     break;
   default:
     output = 0.f;
   }
-}
-
-float RawOscillator::generateTriangle(float ph) {
-  if (ph < 0.5f)
-    return ph * 4.f - 1.f; // Rising: 0→0.5 becomes -1→+1
-  else
-    return 3.f - ph * 4.f; // Falling: 0.5→1 becomes +1→-1
-}
-
-float RawOscillator::generateSaw(float ph) {
-  return ph * -2.f + 1.f; // Maps 0→1 phase to -1→+1
-}
-
-float RawOscillator::generateSub(float ph) {
-  return (ph > 0.5f) ? -1.f : 1.f;
 }
 
 // ============================================================================
@@ -222,14 +190,14 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
     }
   }
 
-  sin = generateSine(phase);
+  sin = ki1h::sine(phase);
 
   switch (waveType) {
   case 0:
     output = generateShapedWave(phase, shape);
     break;
   case 1:
-    output = generateSquare(phase, shape);
+    output = ki1h::square(phase, shape);
     break;
   default:
     output = 0.f;
