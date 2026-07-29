@@ -118,18 +118,18 @@ struct KI1H_FILTERWidget : ModuleWidget {
 // PROCESS METHOD
 // ============================================================================
 void LPFilter::process(float input, float cutoff, float resonance, float sampletime) {
-  // Pre-calculate coefficient once per sample
+  // Recomputed every sample from a control-rate cutoff; see issue #43.
   cutoff_coeff = 1.0f - exp(-2.0f * M_PI * cutoff * sampletime);
 
   // Single feedback calculation
   float feedback = stages[11] * resonance;
   float signal = input - feedback;
 
+  // Cascade of 12 one-pole lowpasses. Left as a loop and let -O3 unroll it.
   for (int i = 0; i < 12; i++) {
     float x = signal;
     if (i > 0)
       x = stages[i - 1];
-    // 12 simple one-poles (unrolled for efficiency)
     stages[i] += cutoff_coeff * (x - stages[i]);
   }
   output = stages[11];
