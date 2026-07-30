@@ -62,7 +62,7 @@ struct ShaperOscillator : Oscillator {
 // ============================================================================
 struct KI1H_VCO : Module {
   enum ParamIds {
-    PCOURSE_PARAM,
+    PCOARSE_PARAM,
     PFINE_PARAM,
     PULSEWIDTH_PARAM,
     WAVE_PARAM,
@@ -70,7 +70,7 @@ struct KI1H_VCO : Module {
     FM_PARAM,
     FM_SWITCH_PARAM,
     AM_PARAM,
-    PCOURSE2_PARAM,
+    PCOARSE2_PARAM,
     PFINE2_PARAM,
     SHAPE_PARAM,
     WAVE2_PARAM,
@@ -83,10 +83,10 @@ struct KI1H_VCO : Module {
     SHAPE_INPUT,
     FM_INPUT,
     AM_INPUT,
-    SYNC_IN,
+    SYNC_INPUT,
     NUM_INPUTS
   };
-  enum OutputIds { WAVE_OUT, WAVE2_OUT, SUB_OUT, NUM_OUTPUTS };
+  enum OutputIds { WAVE_OUTPUT, WAVE2_OUTPUT, SUB_OUTPUT, NUM_OUTPUTS };
   enum LightIds { BLINK1_LIGHT, BLINK2_LIGHT, NUM_LIGHTS };
   enum Waves { WAVE_TRI, WAVE_SAW, WAVE_SQ, WAVE_PWM };
 
@@ -274,7 +274,7 @@ KI1H_VCO::KI1H_VCO() {
   // OSCILLATOR 1 - PARAMETER CONFIGURATION
   // ============================================================================
   configParam(PFINE_PARAM, -0.5f, 0.5f, 0.f, "Detune", " cents", 0.f, 100.f, 0.f);
-  configParam(PCOURSE_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam(PCOARSE_PARAM, -4.6f, 5.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
   configParam(PULSEWIDTH_PARAM, 0.1f, 0.9f, 0.5f, "Pulse Width", " %", 0.f, 100.f, 0.f);
   auto waveParam =
       configSwitch(WAVE_PARAM, 0.f, 2.f, 0.f, "Wave", {"Triangle", "Sawtooth", "Pulse"});
@@ -285,14 +285,14 @@ KI1H_VCO::KI1H_VCO() {
   // ============================================================================
   configInput(PITCH_INPUT, "1V/oct pitch");
   configInput(PW1_INPUT, "Pulsewidth");
-  configOutput(WAVE_OUT, "Waveform");
-  configOutput(SUB_OUT, "Sub");
+  configOutput(WAVE_OUTPUT, "Waveform");
+  configOutput(SUB_OUTPUT, "Sub");
 
   // ============================================================================
   // OSCILLATOR 2 - PARAMETER CONFIGURATION
   // ============================================================================
   configParam(PFINE2_PARAM, -0.5f, 0.5f, 0.f, "Detune", " cents", 0.f, 100.f, 0.f);
-  configParam(PCOURSE2_PARAM, -5.5f, 6.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam(PCOARSE2_PARAM, -5.5f, 6.2f, 0.f, "Frequency", " Hz", 2.f, dsp::FREQ_C4, 0.f);
   configParam(SHAPE_PARAM, 0.1f, 0.9f, 0.5f, "Shape", " %", 0.f, 100.f, 0.f);
   auto waveParam2 = configSwitch(WAVE2_PARAM, 0.f, 1.f, 0.f, "Wave", {"Sin-Saw", "Pulse"});
   waveParam2->snapEnabled = true;
@@ -312,17 +312,17 @@ KI1H_VCO::KI1H_VCO() {
   // ============================================================================
   configInput(PITCH2_INPUT, "1V/oct pitch");
   configInput(SHAPE_INPUT, "Shape");
-  configInput(SYNC_IN, "Ext sync");
+  configInput(SYNC_INPUT, "Ext sync");
   configInput(FM_INPUT, "FM");
   configInput(AM_INPUT, "AM");
-  configOutput(WAVE2_OUT, "Waveform");
+  configOutput(WAVE2_OUTPUT, "Waveform");
 }
 
 void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 1 - PITCH & PWM PROCESSING
   // ============================================================================
-  float pitch1 = params[PFINE_PARAM].getValue() + params[PCOURSE_PARAM].getValue();
+  float pitch1 = params[PFINE_PARAM].getValue() + params[PCOARSE_PARAM].getValue();
   pitch1 += inputs[PITCH_INPUT].getVoltage();
   float pwm1 = 0;
   if (inputs[PW1_INPUT].isConnected())
@@ -334,14 +334,14 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // OSCILLATOR 1 - PROCESS & OUTPUT
   // ============================================================================
   osc1.process(pitch1, pulseWidth1 + pwm1, waveType1, args.sampleTime);
-  outputs[WAVE_OUT].setVoltage(CV_SCALE * osc1.getOutput());
-  outputs[SUB_OUT].setVoltage(CV_SCALE * osc1.getSub());
+  outputs[WAVE_OUTPUT].setVoltage(CV_SCALE * osc1.getOutput());
+  outputs[SUB_OUTPUT].setVoltage(CV_SCALE * osc1.getSub());
 
   // ============================================================================
   // OSCILLATOR 2 - PITCH & SYNC SETUP
   // ============================================================================
   int syncType = (int)params[SYNC_PARAM].getValue();
-  float pitch2 = params[PFINE2_PARAM].getValue() + params[PCOURSE2_PARAM].getValue();
+  float pitch2 = params[PFINE2_PARAM].getValue() + params[PCOARSE2_PARAM].getValue();
   pitch2 += inputs[PITCH2_INPUT].getVoltage();
 
   // ============================================================================
@@ -380,8 +380,8 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // OSCILLATOR 2 - SYNC PROCESSING
   // ============================================================================
   float syncVal = 0.f;
-  if (inputs[SYNC_IN].isConnected())
-    syncVal = inputs[SYNC_IN].getVoltage();
+  if (inputs[SYNC_INPUT].isConnected())
+    syncVal = inputs[SYNC_INPUT].getVoltage();
   else
     syncVal = (CV_SCALE * osc1.getOutput());
 
@@ -392,7 +392,7 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
 
   osc2.process(pitch2, linFM, am, syncType, syncVal, shape + shapeIn, waveType2, args.sampleTime);
-  outputs[WAVE2_OUT].setVoltage(CV_SCALE * osc2.getOutput());
+  outputs[WAVE2_OUTPUT].setVoltage(CV_SCALE * osc2.getOutput());
 
   // ============================================================================
   // STATUS LIGHT PROCESSING
@@ -420,7 +420,7 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_VCO::PFINE_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
-                                               KI1H_VCO::PCOURSE_PARAM));
+                                               KI1H_VCO::PCOARSE_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
                                                KI1H_VCO::PULSEWIDTH_PARAM));
 
@@ -442,15 +442,15 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                              KI1H_VCO::PW1_INPUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[1] - HALF_R)),
-                                             module, KI1H_VCO::WAVE_OUT));
+                                             module, KI1H_VCO::WAVE_OUTPUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[2] - HALF_R)),
-                                             module, KI1H_VCO::SUB_OUT));
+                                             module, KI1H_VCO::SUB_OUTPUT));
 
   // ============================================================================
   // OSCILLATOR 2 - SYNC & FM CONTROLS
   // ============================================================================
   addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module, KI1H_VCO::SYNC_IN));
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module, KI1H_VCO::SYNC_INPUT));
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[3])), module,
                                              KI1H_VCO::SYNC_PARAM));
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[2])), module,
@@ -462,7 +462,7 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
                                                KI1H_VCO::PFINE2_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[4])), module,
-                                               KI1H_VCO::PCOURSE2_PARAM));
+                                               KI1H_VCO::PCOARSE2_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
                                                KI1H_VCO::SHAPE_PARAM));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
@@ -470,7 +470,7 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
                                                KI1H_VCO::AM_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[5] - HALF_R)),
-                                             module, KI1H_VCO::WAVE2_OUT));
+                                             module, KI1H_VCO::WAVE2_OUTPUT));
 
   // ============================================================================
   // OSCILLATOR 2 - INPUTS & WAVE CONTROL
