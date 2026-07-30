@@ -147,7 +147,7 @@ void HPFilter::process(float input, float cutoff, float sampletime) {
   prev_output = hp_out;
 
   output = hp_out;
-};
+}
 
 void BPFilter::process(float input, float frequency, float width, float resonance,
                        float sampletime) {
@@ -227,7 +227,7 @@ KI1H_FILTER::KI1H_FILTER() {
   filter1link->snapEnabled = true;
   auto filter2link = configSwitch(Filt2Link, 0.f, 1.f, 0.f, "Filter 2 Link", {"off", "on"});
   filter2link->snapEnabled = true;
-};
+}
 
 // ============================================================================
 // Filter - PARAMETER CONFIGURATION
@@ -312,7 +312,7 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
   outputs[HPOUT].setVoltage(hpfilter.getOutput());
   outputs[BPOUT1].setVoltage(bpfilter1.getOutput() * 2.f);
   outputs[BPOUT2].setVoltage(bpfilter2.getOutput() * 2.f);
-};
+}
 
 KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
   setModule(module);
@@ -397,6 +397,6 @@ KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
                                              module, KI1H_FILTER::Filt1Link));
   addParam(createParamCentered<BefacoToggle>(mm2px(Vec(COLUMNS[3] - HALF_C, ROWS[4] - HALF_R)),
                                              module, KI1H_FILTER::Filt2Link));
-};
+}
 
 Model *modelKI1H_FILTER = createModel<KI1H_FILTER, KI1H_FILTERWidget>("KI1H-FILTER");

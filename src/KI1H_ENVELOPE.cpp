@@ -31,8 +31,6 @@ struct ADEnvelope : Envelope {
   float envState = 0.f;
   float attackTime = 0.1f, releaseTime = 0.1f;
 
-  ADEnvelope() {};
-
   void retrigger() {
     eoa = 0.f;
     eor = 1.f;
@@ -79,6 +77,8 @@ struct ADEnvelope : Envelope {
       break;
     }
     case STAGE_SUSTAIN: {
+      // Unreachable here: ADEnvelope::processTransition never enters it. The
+      // case exists only to keep the switch exhaustive over the shared enum.
       break;
     }
     }
@@ -95,8 +95,6 @@ struct ASDEnvelope : Envelope {
   Stage stage = STAGE_OFF;
   float envState = 0.f;
   float attackTime = 0.1f, releaseTime = 0.1f, sustain = 1.f;
-
-  ASDEnvelope() {};
 
   void retrigger() {
     eoa = 0.f;
@@ -221,12 +219,6 @@ struct KI1H_ENVELOPEWidget : ModuleWidget {
 };
 
 // ============================================================================
-// PROCESS METHOD
-// ============================================================================
-
-// void ADEnvelope::process() {};
-
-// ============================================================================
 // MODULE CONFIGURATION
 // ============================================================================
 KI1H_ENVELOPE::KI1H_ENVELOPE() {
@@ -248,8 +240,6 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
   configInput(TRIGGER3_INPUT, "AD2 Trigger");
   configInput(TRIGGER4_INPUT, "ASD2 Trigger");
 
-  // configInput(ATK_CV, "Attack CV");
-  // configInput(REL_CV, "Release CV");
   configOutput(EOA1, "AD1 End of Attack");
   configOutput(EOA2, "ASD1 End of Attack");
   configOutput(EOA3, "AD2 End of Attack");
@@ -262,7 +252,7 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
   configOutput(OUT2, "ASD1 Output");
   configOutput(OUT3, "AD2 Output");
   configOutput(OUT4, "ASD2 Output");
-};
+}
 
 // ============================================================================
 // Envelope - PARAMETER CONFIGURATION
@@ -373,7 +363,7 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   outputs[OUT4].setVoltage(adsr2Volt * CV_SCALE);
   outputs[EOA4].setVoltage(asd2.eoa * CV_SCALE);
   outputs[EOR4].setVoltage(asd2.eor * CV_SCALE);
-};
+}
 
 KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
   setModule(module);
@@ -444,6 +434,6 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
                                              module, KI1H_ENVELOPE::EOR4));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
                                               KI1H_ENVELOPE::OUT4));
-};
+}
 
 Model *modelKI1H_ENVELOPE = createModel<KI1H_ENVELOPE, KI1H_ENVELOPEWidget>("KI1H-ENVELOPE");

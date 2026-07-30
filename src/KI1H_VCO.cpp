@@ -13,7 +13,7 @@ struct Oscillator {
     return output;
   }
   float getBlink() const {
-    return blinkPhase;
+    return phase;
   }
   float getSin() const {
     return sin;
@@ -21,7 +21,6 @@ struct Oscillator {
 
   float phase = 0.f;
   float output = 0.f;
-  float blinkPhase = 0.f;
   float sin = 0.f;
 
   void updatePhases(float freq, float sampleTime);
@@ -119,8 +118,6 @@ void Oscillator::updatePhases(float freq, float sampleTime) {
   phase += freq * sampleTime;
   if (phase >= 1.f)
     phase -= 1.f;
-
-  blinkPhase = phase;
 }
 
 float Oscillator::generateSine(float ph) {
@@ -241,7 +238,6 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
 float ShaperOscillator::generateShapedWave(float ph, float shape) {
   // Start with saw core
   float saw = ph * 2.f - 1.f; // -1 to +1 sawtooth
-                              //
   float harmonicReduction = std::abs(1.f - shape);
 
   // Apply harmonic reduction using a simple low-pass-like formula

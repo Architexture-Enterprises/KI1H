@@ -65,7 +65,7 @@ void KAOS::process(float color, float bkIn, float pkIn) {
   if (bkIn != -99.f)
     if (bKaosTrigger.process(bkIn))
       bKaosOut = brownNoise;
-};
+}
 // ============================================================================
 // SAMPLE AND HOLD CLASS - NOISE GENERATORS
 // ============================================================================
@@ -102,7 +102,7 @@ float KAOS::generatePinkNoise(float whiteNoise) {
 
   // Scale output to slightly narrower range than Brown noise
   return pink * 0.3f;
-};
+}
 
 struct KI1H_KAOS : Module {
   enum ParamIds { NOISE_PARAM, NUM_PARAMS };
@@ -132,7 +132,7 @@ KI1H_KAOS::KI1H_KAOS() {
   configInput(BKAOS_IN, "Chaos 2 Trig");
   configOutput(PKAOS_OUT, "Chaos 1 Out");
   configOutput(BKAOS_OUT, "Chaos 2 Out");
-};
+}
 
 void KI1H_KAOS::process(const ProcessArgs &args) {
   float color = params[NOISE_PARAM].getValue();
@@ -144,7 +144,7 @@ void KI1H_KAOS::process(const ProcessArgs &args) {
     outputs[PKAOS_OUT].setVoltage(KAOS.getpKaos());
   if (outputs[BKAOS_OUT].isConnected())
     outputs[BKAOS_OUT].setVoltage(KAOS.getbKaos());
-};
+}
 
 KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
   setModule(module);
@@ -167,6 +167,6 @@ KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
                                               KI1H_KAOS::BKAOS_IN));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
                                               KI1H_KAOS::BKAOS_OUT));
-};
+}
 
 Model *modelKI1H_KAOS = createModel<KI1H_KAOS, KI1H_KAOSWidget>("KI1H-KAOS");

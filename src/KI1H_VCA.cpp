@@ -31,7 +31,7 @@ struct Channel {
   void process(float input, float cvIn);
   float getOutput() const {
     return output;
-  };
+  }
 
   float output = 0.f;
 };
@@ -44,10 +44,10 @@ struct VCA {
   void process(std::array<float, 5> channels, std::array<float, 5> pans);
   float getLeftOut() const {
     return leftOut;
-  };
+  }
   float getRightOUt() const {
     return rightOut;
-  };
+  }
 
   float leftOut = 0.f;
   float rightOut = 0.f;
@@ -98,7 +98,7 @@ void Channel::process(float input, float cvIn) {
   // CV is unipolar (0-1 range), acts as gain
   float ampd = input * cvIn;
   output = softLimit(ampd);
-};
+}
 
 // ============================================================================
 // VCA PROCESS METHOD
@@ -127,7 +127,7 @@ void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
 
   leftOut = softLimit(leftSum);
   rightOut = softLimit(rightSum);
-};
+}
 
 // ============================================================================
 // MODULE CONFIGURATION
@@ -149,7 +149,7 @@ KI1H_VCA::KI1H_VCA() {
   panCv2Switch->snapEnabled = true;
   configOutput(LOUT, "Left");
   configOutput(ROUT, "Right");
-};
+}
 
 // ============================================================================
 // CHANNELS - PARAMETER CONFIGURATION
@@ -233,7 +233,7 @@ void KI1H_VCA::process(const ProcessArgs &args) {
   // Set left and right outputs
   outputs[LOUT].setVoltage(mix.getLeftOut());
   outputs[ROUT].setVoltage(mix.getRightOUt());
-};
+}
 
 KI1H_VCAWidget::KI1H_VCAWidget(KI1H_VCA *module) {
   setModule(module);
@@ -271,7 +271,7 @@ KI1H_VCAWidget::KI1H_VCAWidget(KI1H_VCA *module) {
                                                module, KI1H_VCA::CV1 + i));
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
                                              KI1H_VCA::IN1 + i));
-  };
-};
+  }
+}
 
 Model *modelKI1H_VCA = createModel<KI1H_VCA, KI1H_VCAWidget>("KI1H-VCA");

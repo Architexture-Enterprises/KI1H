@@ -4,11 +4,15 @@
 // ============================================================================
 // LFO CLASS DEFINITION
 // ============================================================================
+// Note: SampleAndHold below hides rather than overrides process(), getOutput()
+// and getBlink(). That is fine because both are only ever used through their
+// concrete types; nothing calls them through an LFO*. Marking one of the three
+// virtual bought nothing and implied a polymorphism that does not exist.
 struct LFO {
   void process(float pitch, int waveType, float sampletime);
-  virtual float getOutput() const {
+  float getOutput() const {
     return output;
-  };
+  }
   float getBlink() const {
     return phase;
   }
@@ -30,15 +34,15 @@ struct SampleAndHold : LFO {
 public:
   void process(float pitch, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
                int waveType, float lagTime, float sampleTime);
-  float getOutput() const override {
+  float getOutput() const {
     return laggedOutput;
-  };
+  }
   float getClock() {
     return clockOutput;
-  };
+  }
   float getBlink() const {
     return clockPhase;
-  };
+  }
 
   float clockPhase = 0.f;
   float sampledValue = 0.f;
@@ -111,7 +115,7 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   default:
     output = 0.f;
   }
-};
+}
 
 // ============================================================================
 // SAMPLE AND HOLD PROCESS METHOD
@@ -173,7 +177,7 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
 
   // Apply lag filtering to the sampled value
   laggedOutput = alpha * sampledValue + (1.0f - alpha) * laggedOutput;
-};
+}
 
 // ============================================================================
 // LFO CLASS - WAVEFORM GENERATORS
@@ -239,7 +243,7 @@ KI1H_LFO::KI1H_LFO() {
   configInput(CLOCK_IN, "Clock in");
   configOutput(SWAVE_OUT, "S&H Out");
   configOutput(CLOCK_OUT, "Clock Out");
-};
+}
 
 void KI1H_LFO::process(const ProcessArgs &args) {
   // ============================================================================
@@ -309,7 +313,7 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   lights[BLINK1_LIGHT].setBrightness(lfo1.getBlink() < 0.5f ? 1.f : 0.f);
   lights[BLINK2_LIGHT].setBrightness(lfo2.getBlink() < 0.5f ? 1.f : 0.f);
   lights[CLOCK_LIGHT].setBrightness(SNH.getBlink() < 0.5f ? 1.f : 0.f);
-};
+}
 
 KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   setModule(module);

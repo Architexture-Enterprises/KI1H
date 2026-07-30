@@ -29,7 +29,7 @@ struct Channel {
   void process(float input, float cvIn);
   float getOutput() const {
     return output;
-  };
+  }
 
   float output = 0.f;
 };
@@ -41,13 +41,13 @@ struct Mix {
   void process(std::array<float, 5> all);
   float getAllOut() const {
     return allOut;
-  };
+  }
   float getLeftOut() const {
     return leftOut;
-  };
+  }
   float getRightOUt() const {
     return rightOut;
-  };
+  }
 
   float allOut = 0.f;
   float leftOut = 0.f;
@@ -85,7 +85,7 @@ struct KI1H_MIXWidget : ModuleWidget {
 void Channel::process(float input, float cvIn) {
   float ampd = input * cvIn;
   output = softLimit(ampd);
-};
+}
 
 // ============================================================================
 // MIX PROCESS METHOD
@@ -102,7 +102,7 @@ void Mix::process(std::array<float, 5> all) {
   allOut = softLimit(std::accumulate(all.begin(), all.end(), 0.0f));
   leftOut = softLimit(std::accumulate(odds.begin(), odds.end(), 0.0f));
   rightOut = softLimit(std::accumulate(evens.begin(), evens.end(), 0.0f));
-};
+}
 
 // ============================================================================
 // MODULE CONFIGURATION
@@ -122,7 +122,7 @@ KI1H_MIX::KI1H_MIX() {
   configOutput(ALL_OUT, "All");
   configOutput(LOUT, "Odds");
   configOutput(ROUT, "Evens");
-};
+}
 
 // ============================================================================
 // CHANNELS - PARAMETER CONFIGURATION
@@ -159,7 +159,7 @@ void KI1H_MIX::process(const ProcessArgs &args) {
   outputs[LOUT].setVoltage(mix.getLeftOut());
   outputs[ALL_OUT].setVoltage(mix.getAllOut());
   outputs[ROUT].setVoltage(mix.getRightOUt());
-};
+}
 
 KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
   setModule(module);
@@ -195,7 +195,7 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
                                                module, KI1H_MIX::CV1 + i));
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
                                              KI1H_MIX::IN1 + i));
-  };
-};
+  }
+}
 
 Model *modelKI1H_MIX = createModel<KI1H_MIX, KI1H_MIXWidget>("KI1H-MIX");
