@@ -34,7 +34,7 @@ struct Oscillator {
 // RAW PURE WAVEFORM OSCILLATOR
 // ============================================================================
 struct RawOscillator : Oscillator {
-  void process(float pitch, float pulseWidth, int waveType, float sampleTime);
+  void process(float pitch, float pulseWidth, int waveType, float sampleTime, bool needSub);
   float getSub() const {
     return sub;
   }
@@ -52,7 +52,7 @@ struct RawOscillator : Oscillator {
 // ============================================================================
 struct ShaperOscillator : Oscillator {
   void process(float pitch, float linFM, float am, float softSync, float hardSync, float shape,
-               int waveType, float sampleTime);
+               int waveType, float sampleTime, bool needOutput);
 
   float generateShapedWave(float ph, float shape);
 };
@@ -139,19 +139,25 @@ float Oscillator::generateSquare(float ph, float pw) {
 // ============================================================================
 // RAWOSCILLATOR CLASS
 // ============================================================================
-void RawOscillator::process(float pitch, float pulseWidth, int waveType, float sampleTime) {
+void RawOscillator::process(float pitch, float pulseWidth, int waveType, float sampleTime,
+                            bool needSub) {
   float freq = calculateFreq(pitch);
 
-  float subFreq = freq / 2.f;
   updatePhases(freq, sampleTime);
 
   sin = generateSine(phase);
 
-  subPhase += subFreq * sampleTime;
-  if (subPhase >= 1.f)
-    subPhase -= 1.f;
+  // The sub oscillator feeds SUB_OUTPUT and nothing else, so it can be skipped
+  // outright when that jack is empty. osc1's main output and sine cannot: they
+  // normal into osc2's sync and FM.
+  if (needSub) {
+    float subFreq = freq / 2.f;
+    subPhase += subFreq * sampleTime;
+    if (subPhase >= 1.f)
+      subPhase -= 1.f;
 
-  sub = generateSub(subPhase);
+    sub = generateSub(subPhase);
+  }
 
   switch (waveType) {
   case 0:
@@ -187,7 +193,7 @@ float RawOscillator::generateSub(float ph) {
 // SHAPEROSCILLATOR CLASS
 // ============================================================================
 void ShaperOscillator::process(float pitch, float linFM, float AM, float syncType, float syncVal,
-                               float shape, int waveType, float sampleTime) {
+                               float shape, int waveType, float sampleTime, bool needOutput) {
   float freq = calculateFreq(pitch);
 
   // Apply linear FM directly to frequency BEFORE phase update
@@ -223,6 +229,14 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
   }
 
   sin = generateSine(phase);
+
+  // generateShapedWave is the most expensive routine in the plugin. Skip it
+  // when WAVE2_OUTPUT is empty. The phase accumulation and sync above still
+  // run, so BLINK2_LIGHT keeps blinking whether or not anything is patched.
+  if (!needOutput) {
+    output = 0.f;
+    return;
+  }
 
   switch (waveType) {
   case 0:
@@ -333,7 +347,8 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 1 - PROCESS & OUTPUT
   // ============================================================================
-  osc1.process(pitch1, pulseWidth1 + pwm1, waveType1, args.sampleTime);
+  osc1.process(pitch1, pulseWidth1 + pwm1, waveType1, args.sampleTime,
+               outputs[SUB_OUT].isConnected());
   outputs[WAVE_OUT].setVoltage(CV_SCALE * osc1.getOutput());
   outputs[SUB_OUT].setVoltage(CV_SCALE * osc1.getSub());
 
@@ -391,7 +406,8 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   float shape = params[SHAPE_PARAM].getValue();
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
 
-  osc2.process(pitch2, linFM, am, syncType, syncVal, shape + shapeIn, waveType2, args.sampleTime);
+  osc2.process(pitch2, linFM, am, syncType, syncVal, shape + shapeIn, waveType2, args.sampleTime,
+               outputs[WAVE2_OUT].isConnected());
   outputs[WAVE2_OUT].setVoltage(CV_SCALE * osc2.getOutput());
 
   // ============================================================================
