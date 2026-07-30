@@ -23,7 +23,12 @@ struct LPFilter : Filter {
   float minFreq = 20.f;
   float maxFreq = 22000.f;
   float stages[12];
-  float cutoff_coeff;
+  float cutoff_coeff = 0.f;
+
+  // Cache keyed on the inputs the coefficient derives from. Negative
+  // sentinels so the first process() call always computes.
+  float cachedCutoff = -1.f;
+  float cachedSampletime = -1.f;
 };
 
 struct BPFilter : Filter {
@@ -45,6 +50,13 @@ struct BPFilter : Filter {
   // 6dB HP state
   float hp_prev_in = 1.f;
   float hp_prev_out = 1.f;
+  float hp_alpha = 0.f;
+
+  // Cache keyed on everything the coefficients derive from.
+  float cachedFreq = -1.f;
+  float cachedWidth = -1.f;
+  float cachedRes = -1.f;
+  float cachedSampletime = -1.f;
 
   // 12dB LP biquad states
   float x1, x2, y1, y2;     // State variables
@@ -57,6 +69,10 @@ struct HPFilter : Filter {
   float maxFreq = 10000.f;
   float prev_input = 1.f;
   float prev_output = 1.f;
+
+  float alpha = 0.f;
+  float cachedCutoff = -1.f;
+  float cachedSampletime = -1.f;
 };
 
 // ============================================================================
@@ -118,8 +134,13 @@ struct KI1H_FILTERWidget : ModuleWidget {
 // PROCESS METHOD
 // ============================================================================
 void LPFilter::process(float input, float cutoff, float resonance, float sampletime) {
-  // Pre-calculate coefficient once per sample
-  cutoff_coeff = 1.0f - exp(-2.0f * M_PI * cutoff * sampletime);
+  // cutoff comes from a knob plus optional CV, so it is control rate. Only
+  // pay for the exp() when it actually moves.
+  if (cutoff != cachedCutoff || sampletime != cachedSampletime) {
+    cachedCutoff = cutoff;
+    cachedSampletime = sampletime;
+    cutoff_coeff = 1.0f - exp(-2.0f * M_PI * cutoff * sampletime);
+  }
 
   // Single feedback calculation
   float feedback = stages[11] * resonance;
@@ -137,8 +158,12 @@ void LPFilter::process(float input, float cutoff, float resonance, float samplet
 
 void HPFilter::process(float input, float cutoff, float sampletime) {
 
-  // High-pass coefficient
-  float alpha = exp(-2.0f * M_PI * cutoff * sampletime);
+  // High-pass coefficient, recomputed only when cutoff or sample rate moves.
+  if (cutoff != cachedCutoff || sampletime != cachedSampletime) {
+    cachedCutoff = cutoff;
+    cachedSampletime = sampletime;
+    alpha = exp(-2.0f * M_PI * cutoff * sampletime);
+  }
 
   // RC high-pass
   float hp_out = alpha * (prev_output + input - prev_input);
@@ -151,16 +176,28 @@ void HPFilter::process(float input, float cutoff, float sampletime) {
 
 void BPFilter::process(float input, float frequency, float width, float resonance,
                        float sampletime) {
-  float bw = frequency * width;
-  float q = (frequency / bw) * (1.f + resonance * 10.f);
-  float hpFreq = frequency - bw / 2;
-  float lpFreq = (bw / 2) + frequency;
+  // frequency, width and resonance are all knob-plus-CV, i.e. control rate.
+  // Recompute the coefficient set only when one of them actually moves; the
+  // sample loop below runs every sample regardless.
+  if (frequency != cachedFreq || width != cachedWidth || resonance != cachedRes ||
+      sampletime != cachedSampletime) {
+    cachedFreq = frequency;
+    cachedWidth = width;
+    cachedRes = resonance;
+    cachedSampletime = sampletime;
 
-  hpFreq = std::max(hpFreq, 30.f);
-  lpFreq = std::min(15000.f, lpFreq);
-  float hp_alpha = exp(-2.0f * M_PI * hpFreq * sampletime);
-  float w = 2.0f * M_PI * lpFreq * sampletime;
-  setCoefficients(w, q);
+    float bw = frequency * width;
+    float q = (frequency / bw) * (1.f + resonance * 10.f);
+    float hpFreq = frequency - bw / 2;
+    float lpFreq = (bw / 2) + frequency;
+
+    hpFreq = std::max(hpFreq, 30.f);
+    lpFreq = std::min(15000.f, lpFreq);
+    hp_alpha = exp(-2.0f * M_PI * hpFreq * sampletime);
+    float w = 2.0f * M_PI * lpFreq * sampletime;
+    setCoefficients(w, q);
+  }
+
   float hp_out = hp_alpha * (hp_prev_out + input - hp_prev_in);
   hp_prev_in = input;
   hp_prev_out = hp_out;
