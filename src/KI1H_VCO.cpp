@@ -55,6 +55,15 @@ struct ShaperOscillator : Oscillator {
                int waveType, float sampleTime);
 
   float generateShapedWave(float ph, float shape);
+
+  // The harmonic amplitudes depend only on `shape`, which is a knob plus CV —
+  // control rate, not audio rate. Cache them so the per-sample loop is
+  // multiply-add only.
+  static const int MAX_HARMONICS = 9;
+  float harmonicCoef[MAX_HARMONICS] = {};
+  int numHarmonics = 0;
+  float cachedShape = -1e9f;
+  void updateHarmonics(float shape);
 };
 
 // ============================================================================
@@ -238,27 +247,53 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
   output *= AM;
 }
 
-float ShaperOscillator::generateShapedWave(float ph, float shape) {
-  // Start with saw core
-  float saw = ph * 2.f - 1.f; // -1 to +1 sawtooth
-                              //
-  float harmonicReduction = std::abs(1.f - shape);
+/** Recomputes the per-harmonic amplitudes for a given shape.
 
-  // Apply harmonic reduction using a simple low-pass-like formula
-  // harmonicReduction: 0.0 = full saw, 1.0 = approaching sine
+Each is (1/h) * (1 - harmonicReduction)^(h-1). Building the power by repeated
+multiplication instead of std::pow removes every pow from the audio path, and
+handles a negative base — reachable when shape CV pushes shape outside
+[0, 2] — the same way the integer-exponent pow did. */
+void ShaperOscillator::updateHarmonics(float shape) {
+  cachedShape = shape;
 
-  if (harmonicReduction < 0.01f) {
-    return saw; // Pure sawtooth
+  const float harmonicReduction = std::abs(1.f - shape);
+  numHarmonics = (int)(8.f * (1.f - harmonicReduction)) + 1;
+  if (numHarmonics > MAX_HARMONICS)
+    numHarmonics = MAX_HARMONICS;
+
+  const float base = 1.f - harmonicReduction;
+  float gain = 1.f; // base^(h-1)
+  for (int h = 1; h <= numHarmonics; h++) {
+    harmonicCoef[h - 1] = gain / h; // (1/h) is the sawtooth harmonic series
+    gain *= base;
   }
+}
 
-  // Method 1: Fourier series reduction
+float ShaperOscillator::generateShapedWave(float ph, float shape) {
+  // harmonicReduction: 0.0 = full saw, 1.0 = approaching sine
+  if (std::abs(1.f - shape) < 0.01f)
+    return ph * 2.f - 1.f; // Pure sawtooth
+
+  if (shape != cachedShape)
+    updateHarmonics(shape);
+
+  // sin(h * theta) is built by angle addition from sin(theta) and cos(theta),
+  // so the whole series costs one sin and one cos instead of one sin per
+  // harmonic. This is an identity, not an approximation:
+  //   sin((h+1)t) = sin(ht)cos(t) + cos(ht)sin(t)
+  //   cos((h+1)t) = cos(ht)cos(t) - sin(ht)sin(t)
+  const float theta = 2.f * M_PI * ph;
+  const float s1 = std::sin(theta);
+  const float c1 = std::cos(theta);
+
+  float sh = s1, ch = c1;
   float result = 0.f;
-  int maxHarmonics = (int)(8.f * (1.f - harmonicReduction)) + 1;
-
-  for (int h = 1; h <= maxHarmonics; h++) {
-    float amplitude = 1.f / h; // Sawtooth harmonic series
-    float harmonicGain = std::pow(1.f - harmonicReduction, h - 1);
-    result += amplitude * harmonicGain * std::sin(2.f * M_PI * ph * h);
+  for (int h = 1; h <= numHarmonics; h++) {
+    result += harmonicCoef[h - 1] * sh;
+    const float nextS = sh * c1 + ch * s1;
+    const float nextC = ch * c1 - sh * s1;
+    sh = nextS;
+    ch = nextC;
   }
 
   return result;
