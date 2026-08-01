@@ -196,7 +196,8 @@ struct KI1H_ENVELOPE : Module {
     NUM_OUTPUTS
   };
 
-  dsp::SchmittTrigger gateTrigger1, gateTrigger2, gateTrigger3, gateTrigger4;
+  // [0]=AD1 [1]=ASD1 [2]=AD2 [3]=ASD2
+  dsp::SchmittTrigger gateTrigger[4];
 
   KI1H_ENVELOPE();
   void process(const ProcessArgs &args) override;
@@ -208,8 +209,8 @@ struct KI1H_ENVELOPE : Module {
   }
 
 private:
-  ADEnvelope ad1, ad2;
-  ASDEnvelope asd1, asd2;
+  ADEnvelope ad[2];
+  ASDEnvelope asd[2];
   float CV_SCALE = 10.f;
 };
 
@@ -269,124 +270,88 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
 // ============================================================================
 
 void KI1H_ENVELOPE::process(const ProcessArgs &args) {
-  // Each AD/ASD pair is self-contained: within a pair the AD's end-of-attack
-  // normals into the ASD's trigger, but nothing crosses between the pairs. So
-  // a pair whose six outputs are all empty can be skipped whole, which also
-  // skips its four convertCVToTimeInSeconds calls (a std::pow each).
-  const bool pair1Live = outputs[OUT1].isConnected() || outputs[OUT2].isConnected() ||
-                         outputs[EOA1].isConnected() || outputs[EOA2].isConnected() ||
-                         outputs[EOR1].isConnected() || outputs[EOR2].isConnected();
-  const bool pair2Live = outputs[OUT3].isConnected() || outputs[OUT4].isConnected() ||
-                         outputs[EOA3].isConnected() || outputs[EOA4].isConnected() ||
-                         outputs[EOR3].isConnected() || outputs[EOR4].isConnected();
+  // ATK, TRIGGER, OUT, EOA and EOR all stride by 2 between the two AD/ASD
+  // pairs, so those index arithmetically off the first member of each enum.
+  //
+  // The release and sustain params do not: they were declared out of order
+  // (REL3, REL4, SUS2, SUS, REL1, REL2). Renumbering them is not an option —
+  // Rack serializes params by index, so it would silently break every saved
+  // patch — so look those two up instead.
+  static const int adRelParam[2] = {REL1_PARAM, REL3_PARAM};
+  static const int asdRelParam[2] = {REL2_PARAM, REL4_PARAM};
+  static const int asdSusParam[2] = {SUS_PARAM, SUS2_PARAM};
 
-  if (pair1Live) {
-    const float atk1Lvl = clamp(params[ATK1_PARAM].getValue(), 0.f, 1.f);
-    ad1.attackTime = convertCVToTimeInSeconds(atk1Lvl);
-    const float rls1Lvl = clamp(params[REL1_PARAM].getValue(), 0.f, 1.f);
-    ad1.releaseTime = convertCVToTimeInSeconds(rls1Lvl);
-    const bool triggered1 = gateTrigger1.process(inputs[TRIGGER1_INPUT].getVoltage());
-    const bool ad1held = gateTrigger1.isHigh();
-    if (triggered1) {
-      ad1.retrigger();
-    }
+  for (int i = 0; i < 2; i++) {
+    const int adIdx = 2 * i;      // AD1, then AD2
+    const int asdIdx = 2 * i + 1; // ASD1, then ASD2
 
-    ad1.process(args.sampleTime, ad1held);
+    // Each AD/ASD pair is self-contained: within a pair the AD's end-of-attack
+    // normals into the ASD's trigger, but nothing crosses between the pairs. So
+    // a pair whose six outputs are all empty can be skipped whole, which also
+    // skips its four convertCVToTimeInSeconds calls (a std::pow each).
+    const bool pairLive =
+        outputs[OUT1 + adIdx].isConnected() || outputs[OUT1 + asdIdx].isConnected() ||
+        outputs[EOA1 + adIdx].isConnected() || outputs[EOA1 + asdIdx].isConnected() ||
+        outputs[EOR1 + adIdx].isConnected() || outputs[EOR1 + asdIdx].isConnected();
+    if (!pairLive)
+      continue;
 
-    outputs[OUT1].setVoltage(ad1.env * CV_SCALE);
-    outputs[EOA1].setVoltage(ad1.eoa * CV_SCALE);
-    outputs[EOR1].setVoltage(ad1.eor * CV_SCALE);
+    // ========================================================================
+    // AD STAGE
+    // ========================================================================
+    ad[i].attackTime =
+        convertCVToTimeInSeconds(clamp(params[ATK1_PARAM + adIdx].getValue(), 0.f, 1.f));
+    ad[i].releaseTime =
+        convertCVToTimeInSeconds(clamp(params[adRelParam[i]].getValue(), 0.f, 1.f));
 
-    const float atk2Lvl = clamp(params[ATK2_PARAM].getValue(), 0.f, 1.f);
-    asd1.attackTime = convertCVToTimeInSeconds(atk2Lvl);
-    const float susLvl = clamp(params[SUS_PARAM].getValue(), 0.f, 1.f);
-    asd1.sustain = susLvl;
-    const float rls2Lvl = clamp(params[REL2_PARAM].getValue(), 0.f, 1.f);
-    asd1.releaseTime = convertCVToTimeInSeconds(rls2Lvl);
-    const bool ADSR1 = !inputs[TRIGGER2_INPUT].isConnected();
-    float asr1TrigPulse = 0.f;
-    if (ADSR1) {
-      asr1TrigPulse = outputs[EOA1].getVoltage();
-    } else {
-      asr1TrigPulse = inputs[TRIGGER2_INPUT].getVoltage();
-    }
+    const bool adTriggered =
+        gateTrigger[adIdx].process(inputs[TRIGGER1_INPUT + adIdx].getVoltage());
+    const bool adHeld = gateTrigger[adIdx].isHigh();
+    if (adTriggered)
+      ad[i].retrigger();
 
-    const bool triggered2 = gateTrigger2.process(asr1TrigPulse);
-    const bool held1 = gateTrigger2.isHigh();
-    const bool sus1 = params[ASR1_SWITCH].getValue() > 0.f;
-    if (triggered2) {
-      asd1.retrigger();
-    }
+    ad[i].process(args.sampleTime, adHeld);
 
-    asd1.process(args.sampleTime, sus1, held1);
+    outputs[OUT1 + adIdx].setVoltage(ad[i].env * CV_SCALE);
+    outputs[EOA1 + adIdx].setVoltage(ad[i].eoa * CV_SCALE);
+    outputs[EOR1 + adIdx].setVoltage(ad[i].eor * CV_SCALE);
 
-    float adsr1Volt = asd1.env;
-    if (ADSR1) {
-      if (ad1.env > adsr1Volt) {
-        adsr1Volt = ad1.env;
-      }
-    }
+    // ========================================================================
+    // ASD STAGE
+    // ========================================================================
+    asd[i].attackTime =
+        convertCVToTimeInSeconds(clamp(params[ATK1_PARAM + asdIdx].getValue(), 0.f, 1.f));
+    asd[i].sustain = clamp(params[asdSusParam[i]].getValue(), 0.f, 1.f);
+    asd[i].releaseTime =
+        convertCVToTimeInSeconds(clamp(params[asdRelParam[i]].getValue(), 0.f, 1.f));
 
-    outputs[OUT2].setVoltage(adsr1Volt * CV_SCALE);
-    outputs[EOA2].setVoltage(asd1.eoa * CV_SCALE);
-    outputs[EOR2].setVoltage(asd1.eor * CV_SCALE);
-  }
+    // With nothing patched into the ASD's own trigger, the pair acts as one
+    // AHDSR: the ASD is fired by the AD's end-of-attack.
+    const bool chained = !inputs[TRIGGER1_INPUT + asdIdx].isConnected();
+    const float asdTrigPulse = chained ? ad[i].eoa * CV_SCALE
+                                       : inputs[TRIGGER1_INPUT + asdIdx].getVoltage();
 
-  if (pair2Live) {
-    const float atk3Lvl = clamp(params[ATK3_PARAM].getValue(), 0.f, 1.f);
-    ad2.attackTime = convertCVToTimeInSeconds(atk3Lvl);
-    const float rls3Lvl = clamp(params[REL3_PARAM].getValue(), 0.f, 1.f);
-    ad2.releaseTime = convertCVToTimeInSeconds(rls3Lvl);
-    const bool triggered3 = gateTrigger3.process(inputs[TRIGGER3_INPUT].getVoltage());
-    const bool ad2held = gateTrigger3.isHigh();
-    if (triggered3) {
-      ad2.retrigger();
-    }
+    const bool asdTriggered = gateTrigger[asdIdx].process(asdTrigPulse);
 
-    ad2.process(args.sampleTime, ad2held);
+    // When chained, sustain has to be held by the AD stage's real gate. The
+    // signal driving gateTrigger[asdIdx] is end-of-attack, which is a pulse,
+    // not a gate, so holding off it would barely sustain at all.
+    const bool asdHeld = chained ? gateTrigger[adIdx].isHigh() : gateTrigger[asdIdx].isHigh();
+    const bool asr = params[ASR1_SWITCH + i].getValue() > 0.f;
+    if (asdTriggered)
+      asd[i].retrigger();
 
-    outputs[OUT3].setVoltage(ad2.env * CV_SCALE);
-    outputs[EOA3].setVoltage(ad2.eoa * CV_SCALE);
-    outputs[EOR3].setVoltage(ad2.eor * CV_SCALE);
+    asd[i].process(args.sampleTime, asr, asdHeld);
 
-    const float atk4Lvl = clamp(params[ATK4_PARAM].getValue(), 0.f, 1.f);
-    asd2.attackTime = convertCVToTimeInSeconds(atk4Lvl);
-    const float sus2Lvl = clamp(params[SUS2_PARAM].getValue(), 0.f, 1.f);
-    asd2.sustain = sus2Lvl;
-    const float rls4Lvl = clamp(params[REL4_PARAM].getValue(), 0.f, 1.f);
-    asd2.releaseTime = convertCVToTimeInSeconds(rls4Lvl);
-    const bool ADSR2 = !inputs[TRIGGER4_INPUT].isConnected();
-    float asr2TrigPulse = 0.f;
-    if (ADSR2) {
-      asr2TrigPulse = outputs[EOA3].getVoltage();
-    } else {
-      asr2TrigPulse = inputs[TRIGGER4_INPUT].getVoltage();
-    }
+    // In chained mode the pair's output is the louder of the two stages, so
+    // the AD's attack is not swallowed by the ASD still being at zero.
+    float asdVolt = asd[i].env;
+    if (chained && ad[i].env > asdVolt)
+      asdVolt = ad[i].env;
 
-    const bool triggered4 = gateTrigger4.process(asr2TrigPulse);
-    bool held2 = false;
-    bool sus2 = params[ASR2_SWITCH].getValue() > 0.f;
-    if (ADSR2) {
-      held2 = gateTrigger3.isHigh();
-    } else {
-      held2 = gateTrigger4.isHigh();
-    }
-
-    if (triggered4) {
-      asd2.retrigger();
-    }
-
-    asd2.process(args.sampleTime, sus2, held2);
-    float adsr2Volt = asd2.env;
-    if (ADSR2) {
-      if (ad2.env > adsr2Volt) {
-        adsr2Volt = ad2.env;
-      }
-    }
-
-    outputs[OUT4].setVoltage(adsr2Volt * CV_SCALE);
-    outputs[EOA4].setVoltage(asd2.eoa * CV_SCALE);
-    outputs[EOR4].setVoltage(asd2.eor * CV_SCALE);
+    outputs[OUT1 + asdIdx].setVoltage(asdVolt * CV_SCALE);
+    outputs[EOA1 + asdIdx].setVoltage(asd[i].eoa * CV_SCALE);
+    outputs[EOR1 + asdIdx].setVoltage(asd[i].eor * CV_SCALE);
   }
 };
 
