@@ -285,6 +285,17 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     const int adIdx = 2 * i;      // AD1, then AD2
     const int asdIdx = 2 * i + 1; // ASD1, then ASD2
 
+    // Each AD/ASD pair is self-contained: within a pair the AD's end-of-attack
+    // normals into the ASD's trigger, but nothing crosses between the pairs. So
+    // a pair whose six outputs are all empty can be skipped whole, which also
+    // skips its four convertCVToTimeInSeconds calls (a std::pow each).
+    const bool pairLive =
+        outputs[OUT1 + adIdx].isConnected() || outputs[OUT1 + asdIdx].isConnected() ||
+        outputs[EOA1 + adIdx].isConnected() || outputs[EOA1 + asdIdx].isConnected() ||
+        outputs[EOR1 + adIdx].isConnected() || outputs[EOR1 + asdIdx].isConnected();
+    if (!pairLive)
+      continue;
+
     // ========================================================================
     // AD STAGE
     // ========================================================================
