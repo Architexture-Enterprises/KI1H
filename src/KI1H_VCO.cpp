@@ -184,8 +184,10 @@ struct KI1H_VCOWidget : ModuleWidget {
 // OSCILLATOR CLASS - SHARED FUNCTION
 // ============================================================================
 float Oscillator::calculateFreq(float pitch) {
-  // Calculate frequency from pitch (1V/octave)
-  return dsp::FREQ_C4 * std::pow(2.f, pitch);
+  // Calculate frequency from pitch (1V/octave). exp2_taylor5 is accurate to
+  // well under a cent over the audio range and about an order of magnitude
+  // cheaper than a generic std::pow with a runtime exponent.
+  return dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
 }
 
 void Oscillator::updatePhases(float freq, float sampleTime) {

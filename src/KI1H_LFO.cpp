@@ -84,7 +84,7 @@ struct KI1H_LFOWidget : ModuleWidget {
 };
 void LFO::process(float pitch, int waveType, float sampleTime) {
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  float freq = dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
 
   // ============================================================================
   // PHASE ACCUMULATION
@@ -120,7 +120,7 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
                             bool sampInConn, int sWaveType, float lagTime, float sampleTime,
                             bool needOutput) {
 
-  float clockFreq = dsp::FREQ_C4 * std::pow(2.f, sampleRate);
+  float clockFreq = dsp::FREQ_C4 * dsp::exp2_taylor5(sampleRate);
   // ============================================================================
   // PHASE ACCUMULATION
   // ============================================================================
@@ -135,11 +135,11 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
     clockOutput = generateSquare(clockPhase);
 
   // Everything below feeds SWAVE_OUT only, so it can be skipped when that jack
-  // is empty — saving a pow, a phase accumulator, a Schmitt trigger and an exp.
+  // is empty — saving an exp2, a phase accumulator, a Schmitt trigger and an exp.
   if (!needOutput)
     return;
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  float freq = dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
   phase += freq * sampleTime;
   if (phase >= 1.f)
     phase -= 1.f;
