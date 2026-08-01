@@ -147,7 +147,7 @@ void KI1H_MIX::process(const ProcessArgs &args) {
     // Set output
     float output = channels[i].getOutput();
     outputs[OUT1 + i].setVoltage(output);
-    if (outputs[CV1 + i].isConnected())
+    if (outputs[OUT1 + i].isConnected())
       all[i] = 0.f;
     else
       all[i] = output;
