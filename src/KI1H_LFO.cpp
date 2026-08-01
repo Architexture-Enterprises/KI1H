@@ -29,7 +29,7 @@ struct LFO {
 struct SampleAndHold : LFO {
 public:
   void process(float pitch, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
-               int waveType, float lagTime, float sampleTime);
+               int waveType, float lagTime, float sampleTime, bool needOutput);
   float getOutput() const override {
     return laggedOutput;
   };
@@ -84,7 +84,7 @@ struct KI1H_LFOWidget : ModuleWidget {
 };
 void LFO::process(float pitch, int waveType, float sampleTime) {
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  float freq = dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
 
   // ============================================================================
   // PHASE ACCUMULATION
@@ -117,21 +117,32 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 // SAMPLE AND HOLD PROCESS METHOD
 // ============================================================================
 void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float sampleIn,
-                            bool sampInConn, int sWaveType, float lagTime, float sampleTime) {
+                            bool sampInConn, int sWaveType, float lagTime, float sampleTime,
+                            bool needOutput) {
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
-
-  float clockFreq = dsp::FREQ_C4 * std::pow(2.f, sampleRate);
+  float clockFreq = dsp::FREQ_C4 * dsp::exp2_taylor5(sampleRate);
   // ============================================================================
   // PHASE ACCUMULATION
   // ============================================================================
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
-
+  // The clock half always runs: it drives CLOCK_OUT and CLOCK_LIGHT.
   clockPhase += clockFreq * sampleTime;
   if (clockPhase >= 1.f)
     clockPhase -= 1.f;
+
+  if (sampleRate == -1)
+    clockOutput = clockIn;
+  else
+    clockOutput = generateSquare(clockPhase);
+
+  // Everything below feeds SWAVE_OUT only, so it can be skipped when that jack
+  // is empty — saving an exp2, a phase accumulator, a Schmitt trigger and an exp.
+  if (!needOutput)
+    return;
+
+  float freq = dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
+  phase += freq * sampleTime;
+  if (phase >= 1.f)
+    phase -= 1.f;
 
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
@@ -151,10 +162,6 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
     output = 0.f;
   }
 
-  if (sampleRate == -1)
-    clockOutput = clockIn;
-  else
-    clockOutput = generateSquare(clockPhase);
   // ============================================================================
   // SAMPLE ON TRIGGER RISING EDGE
   // ============================================================================
@@ -302,7 +309,8 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   if (inputs[CLOCK_IN].isConnected())
     sRate = -1.f;
 
-  SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime);
+  SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime,
+              outputs[SWAVE_OUT].isConnected());
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
 

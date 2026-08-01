@@ -25,10 +25,17 @@ struct Filter {
 
 struct LPFilter : Filter {
   void process(float input, float cutoff, float resonance, float sampletime);
+  /** Restores exactly the state a freshly constructed LPFilter has. */
+  void reset() {
+    output = 0.f;
+    cutoff_coeff = 0.f;
+    for (int i = 0; i < 12; i++)
+      stages[i] = 0.f;
+  }
   float minFreq = 20.f;
   float maxFreq = 22000.f;
-  float stages[12];
-  float cutoff_coeff;
+  float stages[12] = {};
+  float cutoff_coeff = 0.f;
 };
 
 struct BPFilter : Filter {
@@ -47,17 +54,30 @@ struct BPFilter : Filter {
     a1 = (-2.0f * cos_w) / a0;
     a2 = (1.0f - alpha) / a0;
   }
+  /** Restores exactly the state a freshly constructed BPFilter has. */
+  void reset() {
+    output = 0.f;
+    hp_prev_in = hp_prev_out = 1.f;
+    x1 = x2 = y1 = y2 = 0.f;
+    b0 = b1 = b2 = a1 = a2 = 0.f;
+  }
+
   // 6dB HP state
   float hp_prev_in = 1.f;
   float hp_prev_out = 1.f;
 
   // 12dB LP biquad states
-  float x1, x2, y1, y2;     // State variables
-  float b0, b1, b2, a1, a2; // Coefficients
+  float x1 = 0.f, x2 = 0.f, y1 = 0.f, y2 = 0.f;             // State variables
+  float b0 = 0.f, b1 = 0.f, b2 = 0.f, a1 = 0.f, a2 = 0.f;   // Coefficients
 };
 
 struct HPFilter : Filter {
   void process(float input, float cutoff, float sampletime);
+  /** Restores exactly the state a freshly constructed HPFilter has. */
+  void reset() {
+    output = 0.f;
+    prev_input = prev_output = 1.f;
+  }
   float minFreq = 30.f;
   float maxFreq = 10000.f;
   float prev_input = 1.f;
@@ -105,6 +125,14 @@ struct KI1H_FILTER : Module {
 
   KI1H_FILTER();
   void process(const ProcessArgs &args) override;
+
+  void onReset(const ResetEvent &e) override {
+    Module::onReset(e);
+    lpfilter.reset();
+    bpfilter1.reset();
+    bpfilter2.reset();
+    hpfilter.reset();
+  }
 
 private:
   LPFilter lpfilter;
@@ -187,7 +215,7 @@ KI1H_FILTER::KI1H_FILTER() {
   // LP FILTER
   // ============================================================================
   configParam(KI1H_FILTER::LPFreq, KI1H_FILTER::lpfilter.minFreq, KI1H_FILTER::lpfilter.maxFreq,
-              0.1f, "LP Freq", " Hz", 0.f, 1.f, 0.f);
+              1000.f, "LP Freq", " Hz", 0.f, 1.f, 0.f);
   configParam(KI1H_FILTER::LPRes, 0.f, 1.666f, 0.f, "LP Resonance", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::LPIN, "LP In");
   configInput(KI1H_FILTER::LPMOD_IN, "LP FM");
@@ -197,18 +225,18 @@ KI1H_FILTER::KI1H_FILTER() {
   // BP FILTERS
   // ============================================================================
   configParam(KI1H_FILTER::BPFreq1, KI1H_FILTER::bpfilter1.minFreq, KI1H_FILTER::bpfilter1.maxFreq,
-              0.1f, "BP1 Freq", " Hz", 0.f, 1.f, 0.f);
-  configParam(KI1H_FILTER::BPWidth1, 0.5, 5.f, 0.f, "BP1 Width", " %", 0.f, 20.f, 0.f);
-  configParam(KI1H_FILTER::BPRes1, 0.01, 1.666f, 0.f, "BP1 Resonance", " %", 0.f, 1.f, 0.f);
+              1000.f, "BP1 Freq", " Hz", 0.f, 1.f, 0.f);
+  configParam(KI1H_FILTER::BPWidth1, 0.5f, 5.f, 1.f, "BP1 Width", " %", 0.f, 20.f, 0.f);
+  configParam(KI1H_FILTER::BPRes1, 0.01f, 1.666f, 0.01f, "BP1 Resonance", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::BP1IN, "BP1 In");
   configInput(KI1H_FILTER::BPMOD1_IN, "BP1 FM");
   configInput(KI1H_FILTER::BPWIDTH1_IN, "BP1 Width");
   configOutput(KI1H_FILTER::BPOUT1, "BP1 Out");
 
   configParam(KI1H_FILTER::BPFreq2, KI1H_FILTER::bpfilter2.minFreq, KI1H_FILTER::bpfilter2.maxFreq,
-              0.1f, "BP2 Freq", " Hz", 0.f, 1.f, 0.f);
-  configParam(KI1H_FILTER::BPWidth2, 0.5f, 5.f, 0.f, "BP2 Width", " %", 0.f, 20.f, 0.f);
-  configParam(KI1H_FILTER::BPRes2, 0.01f, 1.666f, 0.f, "BP2 Resonance", " %", 0.f, 1.f, 0.f);
+              1000.f, "BP2 Freq", " Hz", 0.f, 1.f, 0.f);
+  configParam(KI1H_FILTER::BPWidth2, 0.5f, 5.f, 1.f, "BP2 Width", " %", 0.f, 20.f, 0.f);
+  configParam(KI1H_FILTER::BPRes2, 0.01f, 1.666f, 0.01f, "BP2 Resonance", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::BP2IN, "BP2 In");
   configInput(KI1H_FILTER::BPMOD2_IN, "BP2 FM");
   configInput(KI1H_FILTER::BPWIDTH2_IN, "BP2 Width");
@@ -218,7 +246,7 @@ KI1H_FILTER::KI1H_FILTER() {
   // HP FILTER
   // ============================================================================
   configParam(KI1H_FILTER::HPFreq, KI1H_FILTER::hpfilter.minFreq, KI1H_FILTER::hpfilter.maxFreq,
-              1.f, "HP Freq", " Hz", 0.f, 1.f, 0.f);
+              30.f, "HP Freq", " Hz", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::HPIN, "HP In");
   configInput(KI1H_FILTER::HPMOD_IN, "HP FM");
   configOutput(KI1H_FILTER::HPOUT, "HP Out");
@@ -303,15 +331,29 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
     bp2Freq = clamp(bp2Freq + bigF, bpfilter2.minFreq, bpfilter2.maxFreq);
   }
 
-  bpfilter1.process(bp1Input, bp1Freq, bp1Width, bp1Res, args.sampleTime);
-  if (!outputs[BPOUT1].isConnected() && !inputs[LPIN].isConnected())
-    lpInput = bpfilter1.getOutput();
-  lpfilter.process(lpInput, lpFreq, lpRes, args.sampleTime);
+  // Skip a filter whose result nobody can observe. BP1 and HP have to stay
+  // live when their own jack is empty but the filter they normal into is
+  // patched, otherwise the internal chain goes silent.
+  const bool bp1Patched = outputs[BPOUT1].isConnected();
+  const bool lpPatched = outputs[LPOUT].isConnected();
+  const bool hpPatched = outputs[HPOUT].isConnected();
+  const bool bp2Patched = outputs[BPOUT2].isConnected();
 
-  hpfilter.process(hpInput, hpFreq, args.sampleTime);
-  if (!outputs[HPOUT].isConnected() && !inputs[BP2IN].isConnected())
-    bp2Input = hpfilter.getOutput();
-  bpfilter2.process(bp2Input, bp2Freq, bp2Width, bp2Res, args.sampleTime);
+  if (bp1Patched || lpPatched)
+    bpfilter1.process(bp1Input, bp1Freq, bp1Width, bp1Res, args.sampleTime);
+  if (lpPatched) {
+    if (!bp1Patched && !inputs[LPIN].isConnected())
+      lpInput = bpfilter1.getOutput();
+    lpfilter.process(lpInput, lpFreq, lpRes, args.sampleTime);
+  }
+
+  if (hpPatched || bp2Patched)
+    hpfilter.process(hpInput, hpFreq, args.sampleTime);
+  if (bp2Patched) {
+    if (!hpPatched && !inputs[BP2IN].isConnected())
+      bp2Input = hpfilter.getOutput();
+    bpfilter2.process(bp2Input, bp2Freq, bp2Width, bp2Res, args.sampleTime);
+  }
 
   outputs[LPOUT].setVoltage(lpfilter.getOutput());
   outputs[HPOUT].setVoltage(hpfilter.getOutput());
