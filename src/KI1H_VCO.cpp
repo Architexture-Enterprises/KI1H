@@ -114,6 +114,9 @@ struct ShaperOscillator : Oscillator {
   float waveAt(float ph, float shape, int waveType);
 
   dsp::MinBlepGenerator<16, 16> blep;
+
+  // Per-instance: the engine runs modules across worker threads, so a shared
+  // trigger would both steal edges between VCOs and race on its own state.
   dsp::SchmittTrigger syncTrigger;
   float prevSyncVal = 0.f;
 
