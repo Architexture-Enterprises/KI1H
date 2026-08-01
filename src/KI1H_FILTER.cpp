@@ -20,10 +20,17 @@ struct Filter {
 
 struct LPFilter : Filter {
   void process(float input, float cutoff, float resonance, float sampletime);
+  /** Restores exactly the state a freshly constructed LPFilter has. */
+  void reset() {
+    output = 0.f;
+    cutoff_coeff = 0.f;
+    for (int i = 0; i < 12; i++)
+      stages[i] = 0.f;
+  }
   float minFreq = 20.f;
   float maxFreq = 22000.f;
-  float stages[12];
-  float cutoff_coeff;
+  float stages[12] = {};
+  float cutoff_coeff = 0.f;
 };
 
 struct BPFilter : Filter {
@@ -42,17 +49,30 @@ struct BPFilter : Filter {
     a1 = (-2.0f * cos_w) / a0;
     a2 = (1.0f - alpha) / a0;
   }
+  /** Restores exactly the state a freshly constructed BPFilter has. */
+  void reset() {
+    output = 0.f;
+    hp_prev_in = hp_prev_out = 1.f;
+    x1 = x2 = y1 = y2 = 0.f;
+    b0 = b1 = b2 = a1 = a2 = 0.f;
+  }
+
   // 6dB HP state
   float hp_prev_in = 1.f;
   float hp_prev_out = 1.f;
 
   // 12dB LP biquad states
-  float x1, x2, y1, y2;     // State variables
-  float b0, b1, b2, a1, a2; // Coefficients
+  float x1 = 0.f, x2 = 0.f, y1 = 0.f, y2 = 0.f;             // State variables
+  float b0 = 0.f, b1 = 0.f, b2 = 0.f, a1 = 0.f, a2 = 0.f;   // Coefficients
 };
 
 struct HPFilter : Filter {
   void process(float input, float cutoff, float sampletime);
+  /** Restores exactly the state a freshly constructed HPFilter has. */
+  void reset() {
+    output = 0.f;
+    prev_input = prev_output = 1.f;
+  }
   float minFreq = 30.f;
   float maxFreq = 10000.f;
   float prev_input = 1.f;
@@ -100,6 +120,14 @@ struct KI1H_FILTER : Module {
 
   KI1H_FILTER();
   void process(const ProcessArgs &args) override;
+
+  void onReset(const ResetEvent &e) override {
+    Module::onReset(e);
+    lpfilter.reset();
+    bpfilter1.reset();
+    bpfilter2.reset();
+    hpfilter.reset();
+  }
 
 private:
   LPFilter lpfilter;
