@@ -269,110 +269,125 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
 // ============================================================================
 
 void KI1H_ENVELOPE::process(const ProcessArgs &args) {
-  const float atk1Lvl = clamp(params[ATK1_PARAM].getValue(), 0.f, 1.f);
-  ad1.attackTime = convertCVToTimeInSeconds(atk1Lvl);
-  const float rls1Lvl = clamp(params[REL1_PARAM].getValue(), 0.f, 1.f);
-  ad1.releaseTime = convertCVToTimeInSeconds(rls1Lvl);
-  const bool triggered1 = gateTrigger1.process(inputs[TRIGGER1_INPUT].getVoltage());
-  const bool ad1held = gateTrigger1.isHigh();
-  if (triggered1) {
-    ad1.retrigger();
-  }
+  // Each AD/ASD pair is self-contained: within a pair the AD's end-of-attack
+  // normals into the ASD's trigger, but nothing crosses between the pairs. So
+  // a pair whose six outputs are all empty can be skipped whole, which also
+  // skips its four convertCVToTimeInSeconds calls (a std::pow each).
+  const bool pair1Live = outputs[OUT1].isConnected() || outputs[OUT2].isConnected() ||
+                         outputs[EOA1].isConnected() || outputs[EOA2].isConnected() ||
+                         outputs[EOR1].isConnected() || outputs[EOR2].isConnected();
+  const bool pair2Live = outputs[OUT3].isConnected() || outputs[OUT4].isConnected() ||
+                         outputs[EOA3].isConnected() || outputs[EOA4].isConnected() ||
+                         outputs[EOR3].isConnected() || outputs[EOR4].isConnected();
 
-  ad1.process(args.sampleTime, ad1held);
-
-  outputs[OUT1].setVoltage(ad1.env * CV_SCALE);
-  outputs[EOA1].setVoltage(ad1.eoa * CV_SCALE);
-  outputs[EOR1].setVoltage(ad1.eor * CV_SCALE);
-
-  const float atk2Lvl = clamp(params[ATK2_PARAM].getValue(), 0.f, 1.f);
-  asd1.attackTime = convertCVToTimeInSeconds(atk2Lvl);
-  const float susLvl = clamp(params[SUS_PARAM].getValue(), 0.f, 1.f);
-  asd1.sustain = susLvl;
-  const float rls2Lvl = clamp(params[REL2_PARAM].getValue(), 0.f, 1.f);
-  asd1.releaseTime = convertCVToTimeInSeconds(rls2Lvl);
-  const bool ADSR1 = !inputs[TRIGGER2_INPUT].isConnected();
-  float asr1TrigPulse = 0.f;
-  if (ADSR1) {
-    asr1TrigPulse = outputs[EOA1].getVoltage();
-  } else {
-    asr1TrigPulse = inputs[TRIGGER2_INPUT].getVoltage();
-  }
-
-  const bool triggered2 = gateTrigger2.process(asr1TrigPulse);
-  const bool held1 = gateTrigger2.isHigh();
-  const bool sus1 = params[ASR1_SWITCH].getValue() > 0.f;
-  if (triggered2) {
-    asd1.retrigger();
-  }
-
-  asd1.process(args.sampleTime, sus1, held1);
-
-  float adsr1Volt = asd1.env;
-  if (ADSR1) {
-    if (ad1.env > adsr1Volt) {
-      adsr1Volt = ad1.env;
+  if (pair1Live) {
+    const float atk1Lvl = clamp(params[ATK1_PARAM].getValue(), 0.f, 1.f);
+    ad1.attackTime = convertCVToTimeInSeconds(atk1Lvl);
+    const float rls1Lvl = clamp(params[REL1_PARAM].getValue(), 0.f, 1.f);
+    ad1.releaseTime = convertCVToTimeInSeconds(rls1Lvl);
+    const bool triggered1 = gateTrigger1.process(inputs[TRIGGER1_INPUT].getVoltage());
+    const bool ad1held = gateTrigger1.isHigh();
+    if (triggered1) {
+      ad1.retrigger();
     }
-  }
 
-  outputs[OUT2].setVoltage(adsr1Volt * CV_SCALE);
-  outputs[EOA2].setVoltage(asd1.eoa * CV_SCALE);
-  outputs[EOR2].setVoltage(asd1.eor * CV_SCALE);
+    ad1.process(args.sampleTime, ad1held);
 
-  const float atk3Lvl = clamp(params[ATK3_PARAM].getValue(), 0.f, 1.f);
-  ad2.attackTime = convertCVToTimeInSeconds(atk3Lvl);
-  const float rls3Lvl = clamp(params[REL3_PARAM].getValue(), 0.f, 1.f);
-  ad2.releaseTime = convertCVToTimeInSeconds(rls3Lvl);
-  const bool triggered3 = gateTrigger3.process(inputs[TRIGGER3_INPUT].getVoltage());
-  const bool ad2held = gateTrigger3.isHigh();
-  if (triggered3) {
-    ad2.retrigger();
-  }
+    outputs[OUT1].setVoltage(ad1.env * CV_SCALE);
+    outputs[EOA1].setVoltage(ad1.eoa * CV_SCALE);
+    outputs[EOR1].setVoltage(ad1.eor * CV_SCALE);
 
-  ad2.process(args.sampleTime, ad2held);
-
-  outputs[OUT3].setVoltage(ad2.env * CV_SCALE);
-  outputs[EOA3].setVoltage(ad2.eoa * CV_SCALE);
-  outputs[EOR3].setVoltage(ad2.eor * CV_SCALE);
-
-  const float atk4Lvl = clamp(params[ATK4_PARAM].getValue(), 0.f, 1.f);
-  asd2.attackTime = convertCVToTimeInSeconds(atk4Lvl);
-  const float sus2Lvl = clamp(params[SUS2_PARAM].getValue(), 0.f, 1.f);
-  asd2.sustain = sus2Lvl;
-  const float rls4Lvl = clamp(params[REL4_PARAM].getValue(), 0.f, 1.f);
-  asd2.releaseTime = convertCVToTimeInSeconds(rls4Lvl);
-  const bool ADSR2 = !inputs[TRIGGER4_INPUT].isConnected();
-  float asr2TrigPulse = 0.f;
-  if (ADSR2) {
-    asr2TrigPulse = outputs[EOA3].getVoltage();
-  } else {
-    asr2TrigPulse = inputs[TRIGGER4_INPUT].getVoltage();
-  }
-
-  const bool triggered4 = gateTrigger4.process(asr2TrigPulse);
-  bool held2 = false;
-  bool sus2 = params[ASR2_SWITCH].getValue() > 0.f;
-  if (ADSR2) {
-    held2 = gateTrigger3.isHigh();
-  } else {
-    held2 = gateTrigger4.isHigh();
-  }
-
-  if (triggered4) {
-    asd2.retrigger();
-  }
-
-  asd2.process(args.sampleTime, sus2, held2);
-  float adsr2Volt = asd2.env;
-  if (ADSR2) {
-    if (ad2.env > adsr2Volt) {
-      adsr2Volt = ad2.env;
+    const float atk2Lvl = clamp(params[ATK2_PARAM].getValue(), 0.f, 1.f);
+    asd1.attackTime = convertCVToTimeInSeconds(atk2Lvl);
+    const float susLvl = clamp(params[SUS_PARAM].getValue(), 0.f, 1.f);
+    asd1.sustain = susLvl;
+    const float rls2Lvl = clamp(params[REL2_PARAM].getValue(), 0.f, 1.f);
+    asd1.releaseTime = convertCVToTimeInSeconds(rls2Lvl);
+    const bool ADSR1 = !inputs[TRIGGER2_INPUT].isConnected();
+    float asr1TrigPulse = 0.f;
+    if (ADSR1) {
+      asr1TrigPulse = outputs[EOA1].getVoltage();
+    } else {
+      asr1TrigPulse = inputs[TRIGGER2_INPUT].getVoltage();
     }
+
+    const bool triggered2 = gateTrigger2.process(asr1TrigPulse);
+    const bool held1 = gateTrigger2.isHigh();
+    const bool sus1 = params[ASR1_SWITCH].getValue() > 0.f;
+    if (triggered2) {
+      asd1.retrigger();
+    }
+
+    asd1.process(args.sampleTime, sus1, held1);
+
+    float adsr1Volt = asd1.env;
+    if (ADSR1) {
+      if (ad1.env > adsr1Volt) {
+        adsr1Volt = ad1.env;
+      }
+    }
+
+    outputs[OUT2].setVoltage(adsr1Volt * CV_SCALE);
+    outputs[EOA2].setVoltage(asd1.eoa * CV_SCALE);
+    outputs[EOR2].setVoltage(asd1.eor * CV_SCALE);
   }
 
-  outputs[OUT4].setVoltage(adsr2Volt * CV_SCALE);
-  outputs[EOA4].setVoltage(asd2.eoa * CV_SCALE);
-  outputs[EOR4].setVoltage(asd2.eor * CV_SCALE);
+  if (pair2Live) {
+    const float atk3Lvl = clamp(params[ATK3_PARAM].getValue(), 0.f, 1.f);
+    ad2.attackTime = convertCVToTimeInSeconds(atk3Lvl);
+    const float rls3Lvl = clamp(params[REL3_PARAM].getValue(), 0.f, 1.f);
+    ad2.releaseTime = convertCVToTimeInSeconds(rls3Lvl);
+    const bool triggered3 = gateTrigger3.process(inputs[TRIGGER3_INPUT].getVoltage());
+    const bool ad2held = gateTrigger3.isHigh();
+    if (triggered3) {
+      ad2.retrigger();
+    }
+
+    ad2.process(args.sampleTime, ad2held);
+
+    outputs[OUT3].setVoltage(ad2.env * CV_SCALE);
+    outputs[EOA3].setVoltage(ad2.eoa * CV_SCALE);
+    outputs[EOR3].setVoltage(ad2.eor * CV_SCALE);
+
+    const float atk4Lvl = clamp(params[ATK4_PARAM].getValue(), 0.f, 1.f);
+    asd2.attackTime = convertCVToTimeInSeconds(atk4Lvl);
+    const float sus2Lvl = clamp(params[SUS2_PARAM].getValue(), 0.f, 1.f);
+    asd2.sustain = sus2Lvl;
+    const float rls4Lvl = clamp(params[REL4_PARAM].getValue(), 0.f, 1.f);
+    asd2.releaseTime = convertCVToTimeInSeconds(rls4Lvl);
+    const bool ADSR2 = !inputs[TRIGGER4_INPUT].isConnected();
+    float asr2TrigPulse = 0.f;
+    if (ADSR2) {
+      asr2TrigPulse = outputs[EOA3].getVoltage();
+    } else {
+      asr2TrigPulse = inputs[TRIGGER4_INPUT].getVoltage();
+    }
+
+    const bool triggered4 = gateTrigger4.process(asr2TrigPulse);
+    bool held2 = false;
+    bool sus2 = params[ASR2_SWITCH].getValue() > 0.f;
+    if (ADSR2) {
+      held2 = gateTrigger3.isHigh();
+    } else {
+      held2 = gateTrigger4.isHigh();
+    }
+
+    if (triggered4) {
+      asd2.retrigger();
+    }
+
+    asd2.process(args.sampleTime, sus2, held2);
+    float adsr2Volt = asd2.env;
+    if (ADSR2) {
+      if (ad2.env > adsr2Volt) {
+        adsr2Volt = ad2.env;
+      }
+    }
+
+    outputs[OUT4].setVoltage(adsr2Volt * CV_SCALE);
+    outputs[EOA4].setVoltage(asd2.eoa * CV_SCALE);
+    outputs[EOR4].setVoltage(asd2.eor * CV_SCALE);
+  }
 };
 
 KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {

@@ -83,7 +83,7 @@ struct Oscillator {
 // RAW PURE WAVEFORM OSCILLATOR
 // ============================================================================
 struct RawOscillator : Oscillator {
-  void process(float pitch, float pulseWidth, int waveType, float sampleTime);
+  void process(float pitch, float pulseWidth, int waveType, float sampleTime, bool needSub);
   float getSub() const {
     return sub;
   }
@@ -106,7 +106,7 @@ struct RawOscillator : Oscillator {
 // ============================================================================
 struct ShaperOscillator : Oscillator {
   void process(float pitch, float linFM, float am, float softSync, float hardSync, float shape,
-               int waveType, float sampleTime);
+               int waveType, float sampleTime, bool needOutput);
 
   float generateShapedWave(float ph, float shape);
   /** The naive waveform at an arbitrary phase. Used to measure the size of the
@@ -206,10 +206,10 @@ float Oscillator::generateSquare(float ph, float pw) {
 // ============================================================================
 // RAWOSCILLATOR CLASS
 // ============================================================================
-void RawOscillator::process(float pitch, float pulseWidth, int waveType, float sampleTime) {
+void RawOscillator::process(float pitch, float pulseWidth, int waveType, float sampleTime,
+                            bool needSub) {
   float freq = calculateFreq(pitch);
 
-  float subFreq = freq / 2.f;
   updatePhases(freq, sampleTime);
 
   sin = generateSine(phase);
@@ -217,21 +217,29 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
   // ==========================================================================
   // SUB OSCILLATOR (50% square, one octave down)
   // ==========================================================================
-  const float subDelta = subFreq * sampleTime;
-  subPhase += subDelta;
-  const bool subWrapped = (subPhase >= 1.f);
-  if (subWrapped)
-    subPhase -= 1.f;
+  // The sub oscillator feeds SUB_OUTPUT and nothing else, so it can be skipped
+  // outright when that jack is empty. osc1's main output and sine cannot: they
+  // normal into osc2's sync and FM.
+  if (needSub) {
+    const float subFreq = freq / 2.f;
+    const float subDelta = subFreq * sampleTime;
+    subPhase += subDelta;
+    const bool subWrapped = (subPhase >= 1.f);
+    if (subWrapped)
+      subPhase -= 1.f;
 
-  // Steps from -1 to +1 at phase 0 and back at phase 0.5.
-  float sp = phaseCrossing(subPhase, subDelta, subWrapped, 0.f);
-  if (sp <= 0.f)
-    subBlep.insertDiscontinuity(sp, 2.f);
-  sp = phaseCrossing(subPhase, subDelta, subWrapped, 0.5f);
-  if (sp <= 0.f)
-    subBlep.insertDiscontinuity(sp, -2.f);
+    // Steps from -1 to +1 at phase 0 and back at phase 0.5.
+    float sp = phaseCrossing(subPhase, subDelta, subWrapped, 0.f);
+    if (sp <= 0.f)
+      subBlep.insertDiscontinuity(sp, 2.f);
+    sp = phaseCrossing(subPhase, subDelta, subWrapped, 0.5f);
+    if (sp <= 0.f)
+      subBlep.insertDiscontinuity(sp, -2.f);
 
-  sub = generateSub(subPhase) + subBlep.process();
+    sub = generateSub(subPhase) + subBlep.process();
+  } else {
+    sub = 0.f;
+  }
 
   // ==========================================================================
   // MAIN WAVEFORM
@@ -292,7 +300,7 @@ float RawOscillator::generateSub(float ph) {
 // SHAPEROSCILLATOR CLASS
 // ============================================================================
 void ShaperOscillator::process(float pitch, float linFM, float AM, float syncType, float syncVal,
-                               float shape, int waveType, float sampleTime) {
+                               float shape, int waveType, float sampleTime, bool needOutput) {
   float freq = calculateFreq(pitch);
 
   // Apply linear FM directly to frequency BEFORE phase update
@@ -341,6 +349,17 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
   }
 
   sin = generateSine(phase);
+
+  // generateShapedWave is the most expensive routine in the plugin. Skip it
+  // when WAVE2_OUTPUT is empty. The phase accumulation and sync above still
+  // run, so BLINK2_LIGHT keeps blinking whether or not anything is patched.
+  // blep still has to be processed: hard sync inserts a discontinuity above,
+  // and leaving it in the buffer would fire as a burst on reconnection.
+  if (!needOutput) {
+    blep.process();
+    output = 0.f;
+    return;
+  }
 
   // Band-limiting. When a sync reset already happened this sample its BLEP
   // covers the jump, so the natural wrap must not be corrected as well.
@@ -509,7 +528,8 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 1 - PROCESS & OUTPUT
   // ============================================================================
-  osc1.process(pitch1, pulseWidth1 + pwm1, waveType1, args.sampleTime);
+  osc1.process(pitch1, pulseWidth1 + pwm1, waveType1, args.sampleTime,
+               outputs[SUB_OUT].isConnected());
   outputs[WAVE_OUT].setVoltage(CV_SCALE * osc1.getOutput());
   outputs[SUB_OUT].setVoltage(CV_SCALE * osc1.getSub());
 
@@ -567,7 +587,8 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   float shape = params[SHAPE_PARAM].getValue();
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
 
-  osc2.process(pitch2, linFM, am, syncType, syncVal, shape + shapeIn, waveType2, args.sampleTime);
+  osc2.process(pitch2, linFM, am, syncType, syncVal, shape + shapeIn, waveType2, args.sampleTime,
+               outputs[WAVE2_OUT].isConnected());
   outputs[WAVE2_OUT].setVoltage(CV_SCALE * osc2.getOutput());
 
   // ============================================================================
