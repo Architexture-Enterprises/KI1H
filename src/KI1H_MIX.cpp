@@ -93,7 +93,7 @@ void Channel::process(float input, float cvIn) {
 void Mix::process(std::array<float, 5> all) {
   std::array<float, 2> evens;
   std::array<float, 3> odds;
-  for (unsigned long i = 0; i < sizeof(all); i++) {
+  for (std::size_t i = 0; i < all.size(); i++) {
     if (i % 2 == 0)
       odds[i / 2] = all[i];
     else
