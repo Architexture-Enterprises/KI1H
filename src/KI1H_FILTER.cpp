@@ -298,15 +298,29 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
     bp2Freq = clamp(bp2Freq + bigF, bpfilter2.minFreq, bpfilter2.maxFreq);
   }
 
-  bpfilter1.process(bp1Input, bp1Freq, bp1Width, bp1Res, args.sampleTime);
-  if (!outputs[BPOUT1].isConnected() && !inputs[LPIN].isConnected())
-    lpInput = bpfilter1.getOutput();
-  lpfilter.process(lpInput, lpFreq, lpRes, args.sampleTime);
+  // Skip a filter whose result nobody can observe. BP1 and HP have to stay
+  // live when their own jack is empty but the filter they normal into is
+  // patched, otherwise the internal chain goes silent.
+  const bool bp1Patched = outputs[BPOUT1].isConnected();
+  const bool lpPatched = outputs[LPOUT].isConnected();
+  const bool hpPatched = outputs[HPOUT].isConnected();
+  const bool bp2Patched = outputs[BPOUT2].isConnected();
 
-  hpfilter.process(hpInput, hpFreq, args.sampleTime);
-  if (!outputs[HPOUT].isConnected() && !inputs[BP2IN].isConnected())
-    bp2Input = hpfilter.getOutput();
-  bpfilter2.process(bp2Input, bp2Freq, bp2Width, bp2Res, args.sampleTime);
+  if (bp1Patched || lpPatched)
+    bpfilter1.process(bp1Input, bp1Freq, bp1Width, bp1Res, args.sampleTime);
+  if (lpPatched) {
+    if (!bp1Patched && !inputs[LPIN].isConnected())
+      lpInput = bpfilter1.getOutput();
+    lpfilter.process(lpInput, lpFreq, lpRes, args.sampleTime);
+  }
+
+  if (hpPatched || bp2Patched)
+    hpfilter.process(hpInput, hpFreq, args.sampleTime);
+  if (bp2Patched) {
+    if (!hpPatched && !inputs[BP2IN].isConnected())
+      bp2Input = hpfilter.getOutput();
+    bpfilter2.process(bp2Input, bp2Freq, bp2Width, bp2Res, args.sampleTime);
+  }
 
   outputs[LPOUT].setVoltage(lpfilter.getOutput());
   outputs[HPOUT].setVoltage(hpfilter.getOutput());
