@@ -350,8 +350,8 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
   float hpInput = inputs[HP_INPUT].getVoltage();
   float hpFreq = params[HPFREQ_PARAM].getValue();
   float bigF = params[BIGKNOB_PARAM].getValue() * bpfilter1.maxFreq;
-  float link1 = params[FILT1LINK_PARAM].getValue();
-  float link2 = params[FILT2LINK_PARAM].getValue();
+  int link1 = (int)params[FILT1LINK_PARAM].getValue();
+  int link2 = (int)params[FILT2LINK_PARAM].getValue();
 
   lpFreq = applyFreqMod(inputs[LPMOD_INPUT], lpFreq, lpfilter.minFreq, lpfilter.maxFreq);
   bp1Freq = applyFreqMod(inputs[BPMOD1_INPUT], bp1Freq, bpfilter1.minFreq, bpfilter1.maxFreq);
@@ -361,11 +361,11 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
 
   bp1Width = applyWidthMod(inputs[BPWIDTH1_INPUT], bp1Width);
   bp2Width = applyWidthMod(inputs[BPWIDTH2_INPUT], bp2Width);
-  if (link1 == 0.f) {
+  if (link1 == 0) {
     bp1Freq = clamp(bp1Freq + bigF, bpfilter1.minFreq, bpfilter1.maxFreq);
     lpFreq = clamp(lpFreq + bigF, lpfilter.minFreq, lpfilter.maxFreq);
   }
-  if (link2 == 1.f) {
+  if (link2 == 1) {
     hpFreq = clamp(hpFreq + bigF, hpfilter.minFreq, hpfilter.maxFreq);
     bp2Freq = clamp(bp2Freq + bigF, bpfilter2.minFreq, bpfilter2.maxFreq);
   }
