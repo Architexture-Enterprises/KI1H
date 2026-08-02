@@ -1,3 +1,4 @@
+#include "dsp.hpp"
 #include "plugin.hpp"
 #include "random"
 
@@ -10,17 +11,11 @@ struct LFO {
     return output;
   };
   float getBlink() const {
-    return phase;
+    return phase.phase;
   }
 
   float output = 0.f;
-  float phase = 0.f;
-
-  float generateSine(float phase);
-  float generateTriangle(float phase);
-  float generateSaw(float phase);
-  float generateSquare(float phase);
-  float generateRamp(float phase);
+  ki1h::Phasor phase;
 };
 
 // ============================================================================
@@ -28,8 +23,8 @@ struct LFO {
 // ============================================================================
 struct SampleAndHold : LFO {
 public:
-  void process(float pitch, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
-               int waveType, float lagTime, float sampleTime);
+  void process(float oscPhase, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
+               int waveType, float lagTime, float sampleTime, bool needOutput);
   float getOutput() const override {
     return laggedOutput;
   };
@@ -37,14 +32,21 @@ public:
     return clockOutput;
   };
   float getBlink() const {
-    return clockPhase;
+    return clockPhase.phase;
   };
 
-  float clockPhase = 0.f;
+  ki1h::Phasor clockPhase;
   float sampledValue = 0.f;
   float laggedOutput = 0.f;
   float clockOutput = 0.f;
   dsp::SchmittTrigger sampleTrigger;
+
+  // Cached lag coefficient. lagTime is a knob and sampleTime only moves on a
+  // sample-rate change, so the exp() behind it almost never needs redoing.
+  // The sentinels are negative so the first process() call always misses.
+  float lagAlpha = 0.f;
+  float cachedLagTime = -1.f;
+  float cachedSampleTime = -1.f;
 };
 
 // ============================================================================
@@ -73,7 +75,7 @@ struct KI1H_LFO : Module {
 private:
   LFO lfo1, lfo2;
   SampleAndHold SNH;
-  float CV_SCALE = 5.f;
+  static constexpr float CV_SCALE = 5.f;
 };
 
 // ============================================================================
@@ -84,15 +86,13 @@ struct KI1H_LFOWidget : ModuleWidget {
 };
 void LFO::process(float pitch, int waveType, float sampleTime) {
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  float freq = dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
 
   // ============================================================================
   // PHASE ACCUMULATION
   // ============================================================================
   // Normal phase accumulation
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
+  phase.advance(freq, sampleTime);
 
   // ============================================================================
   // WAVEFORM GENERATION
@@ -100,13 +100,13 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   // Generate waveform based on type
   switch (waveType) {
   case 0:
-    output = generateSine(phase);
+    output = ki1h::sine(phase.phase);
     break;
   case 1:
-    output = generateSaw(phase);
+    output = ki1h::saw(phase.phase);
     break;
   case 2:
-    output = generateSquare(phase);
+    output = ki1h::square(phase.phase);
     break;
   default:
     output = 0.f;
@@ -116,22 +116,31 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 // ============================================================================
 // SAMPLE AND HOLD PROCESS METHOD
 // ============================================================================
-void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float sampleIn,
-                            bool sampInConn, int sWaveType, float lagTime, float sampleTime) {
+void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, float sampleIn,
+                            bool sampInConn, int sWaveType, float lagTime, float sampleTime,
+                            bool needOutput) {
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
-
-  float clockFreq = dsp::FREQ_C4 * std::pow(2.f, sampleRate);
+  float clockFreq = dsp::FREQ_C4 * dsp::exp2_taylor5(sampleRate);
   // ============================================================================
   // PHASE ACCUMULATION
   // ============================================================================
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
+  // The clock half always runs: it drives CLOCK_OUT and CLOCK_LIGHT.
+  clockPhase.advance(clockFreq, sampleTime);
 
-  clockPhase += clockFreq * sampleTime;
-  if (clockPhase >= 1.f)
-    clockPhase -= 1.f;
+  if (sampleRate == -1)
+    clockOutput = clockIn;
+  else
+    clockOutput = ki1h::square(clockPhase.phase);
+
+  // Everything below feeds SWAVE_OUT only, so it can be skipped when that jack
+  // is empty — saving the waveform generator, a Schmitt trigger and an exp.
+  if (!needOutput)
+    return;
+
+  // The S&H oscillator runs at lfo2's pitch, so it takes lfo2's phase directly
+  // rather than accumulating a bit-identical copy of it (and paying a second
+  // exp2 per sample to do so). The clock phase above is genuinely independent.
+  phase.phase = oscPhase;
 
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
@@ -139,22 +148,18 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   // Generate S&H waveforms (different from regular LFO waveforms)
   switch (sWaveType) {
   case 0:
-    output = generateSaw(phase);
+    output = ki1h::saw(phase.phase);
     break;
   case 1:
-    output = generateRamp(phase);
+    output = ki1h::ramp(phase.phase);
     break;
   case 2:
-    output = generateTriangle(phase);
+    output = ki1h::triangle(phase.phase);
     break;
   default:
     output = 0.f;
   }
 
-  if (sampleRate == -1)
-    clockOutput = clockIn;
-  else
-    clockOutput = generateSquare(clockPhase);
   // ============================================================================
   // SAMPLE ON TRIGGER RISING EDGE
   // ============================================================================
@@ -167,39 +172,18 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   // ============================================================================
   // APPLY EXPONENTIAL LAG TO SAMPLED VALUE
   // ============================================================================
-  // Calculate time constant for 99% settling in lagTime
-  float timeConstant = lagTime / 4.605f;
-  float alpha = 1.0f - exp(-sampleTime / timeConstant);
+  // Recompute only when the knob or the sample rate actually moves.
+  if (lagTime != cachedLagTime || sampleTime != cachedSampleTime) {
+    cachedLagTime = lagTime;
+    cachedSampleTime = sampleTime;
+    // Time constant for 99% settling in lagTime
+    float timeConstant = lagTime / 4.605f;
+    lagAlpha = 1.0f - std::exp(-sampleTime / timeConstant);
+  }
 
   // Apply lag filtering to the sampled value
-  laggedOutput = alpha * sampledValue + (1.0f - alpha) * laggedOutput;
+  laggedOutput = lagAlpha * sampledValue + (1.0f - lagAlpha) * laggedOutput;
 };
-
-// ============================================================================
-// LFO CLASS - WAVEFORM GENERATORS
-// ============================================================================
-float LFO::generateSine(float ph) {
-  return std::sin(2.f * M_PI * ph);
-}
-
-float LFO::generateTriangle(float ph) {
-  if (ph < 0.5f)
-    return ph * 4.f - 1.f; // Rising: 0→0.5 becomes -1→+1
-  else
-    return 3.f - ph * 4.f; // Falling: 0.5→1 becomes +1→-1
-}
-
-float LFO::generateSaw(float ph) {
-  return ph * -2.f + 1.f; // Maps 0→1 phase to -1→+1
-}
-
-float LFO::generateRamp(float ph) {
-  return ph * 2.f - 1.f;
-}
-
-float LFO::generateSquare(float ph) {
-  return (ph > 0.5f) ? -1.f : 1.f;
-}
 
 KI1H_LFO::KI1H_LFO() {
   // ============================================================================
@@ -302,7 +286,9 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   if (inputs[CLOCK_IN].isConnected())
     sRate = -1.f;
 
-  SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime);
+  // lfo2.process() above has already advanced lfo2.phase for this sample.
+  SNH.process(lfo2.phase.phase, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime,
+              outputs[SWAVE_OUT].isConnected());
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
 
@@ -318,11 +304,7 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // PANEL SCREWS
   // ============================================================================
-  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
-  addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
-  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-  addChild(createWidget<ScrewBlack>(
-      Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+  addPanelScrews(this);
   // ============================================================================
   // BLINKEN LIGHTS
   // ============================================================================
