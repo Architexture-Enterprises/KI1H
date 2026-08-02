@@ -189,11 +189,11 @@ void LPFilter::process(float input, float cutoff, float resonance, float samplet
   float feedback = stages[11] * resonance;
   float signal = input - feedback;
 
+  // Cascade of 12 one-pole lowpasses. Left as a loop and let -O3 unroll it.
   for (int i = 0; i < 12; i++) {
     float x = signal;
     if (i > 0)
       x = stages[i - 1];
-    // 12 simple one-poles (unrolled for efficiency)
     stages[i] += cutoff_coeff * (x - stages[i]);
   }
   output = stages[11];
