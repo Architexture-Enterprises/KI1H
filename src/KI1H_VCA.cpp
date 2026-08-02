@@ -140,36 +140,23 @@ void KI1H_VCA::process(const ProcessArgs &args) {
       cv = inputs[CV1 + i].getVoltage();
     }
 
-    // Check PAN_CV switches for channel 1 and channel 5
-    if (i == 0) {
-      // Channel 1: Check PAN_CV1 switch (0 = volume mode, 1 = panning mode)
-      int panCv1Mode = (int)params[PAN_CV1].getValue();
-      if (panCv1Mode == 1 && inputs[CV1 + i].isConnected()) {
-        // CV controls panning (0-10V -> -1 to +1 pan, 5V = center)
-        float cvPan = (cv / 5.f); // Map 0-10V to -1 to +1
-        pan = std::max(-1.f, std::min(1.f, cvPan));
-      } else if (panCv1Mode == 0 && inputs[CV1 + i].isConnected()) {
+    // Channels 1 and 5 have a switch selecting what their CV does; channels
+    // 2-4 are always volume. Pick the mode first, then apply it once.
+    // 0 = volume mode, 1 = panning mode.
+    const int cvMode = (i == 0)   ? (int)params[PAN_CV1].getValue()
+                       : (i == 4) ? (int)params[PAN_CV2].getValue()
+                                  : 0;
+
+    if (inputs[CV1 + i].isConnected()) {
+      if (cvMode == 1) {
+        // CV controls panning. Note this maps 0-5 V onto centre-to-hard-right
+        // and clamps everything above 5 V; the "5V = center" comment this
+        // replaced described a bipolar mapping the code never implemented.
+        // Preserved as-is — changing it would change the sound.
+        pan = std::max(-1.f, std::min(1.f, cv / 5.f));
+      } else {
         // CV controls volume (0-10V -> 0-1 gain)
-        float cvGain = std::max(0.f, std::min(1.f, cv / 10.f));
-        level *= cvGain;
-      }
-    } else if (i == 4) {
-      // Channel 5: Check PAN_CV2 switch (0 = volume mode, 1 = panning mode)
-      int panCv2Mode = (int)params[PAN_CV2].getValue();
-      if (panCv2Mode == 1 && inputs[CV1 + i].isConnected()) {
-        // CV controls panning (0-10V -> -1 to +1 pan, 5V = center)
-        float cvPan = (cv / 5.f); // Map 0-10V to -1 to +1
-        pan = std::max(-1.f, std::min(1.f, cvPan));
-      } else if (panCv2Mode == 0 && inputs[CV1 + i].isConnected()) {
-        // CV controls volume (0-10V -> 0-1 gain)
-        float cvGain = std::max(0.f, std::min(1.f, cv / 10.f));
-        level *= cvGain;
-      }
-    } else {
-      // Channels 2, 3, 4: CV always controls volume
-      if (inputs[CV1 + i].isConnected()) {
-        float cvGain = std::max(0.f, std::min(1.f, cv / 10.f));
-        level *= cvGain;
+        level *= std::max(0.f, std::min(1.f, cv / 10.f));
       }
     }
 
