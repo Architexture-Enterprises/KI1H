@@ -21,7 +21,7 @@ struct Mix {
   float getLeftOut() const {
     return leftOut;
   };
-  float getRightOUt() const {
+  float getRightOut() const {
     return rightOut;
   };
 
@@ -34,9 +34,9 @@ struct Mix {
 // MIX MODULE DEFINITION
 // ============================================================================
 struct KI1H_MIX : Module {
-  enum PARAM_IDS { ATT1, ATT2, ATT3, ATT4, ATT5, MIX1, MIX2, MIX3, MIX4, MIX5, NUM_PARAMS };
-  enum INPUT_IDS { CV1, CV2, CV3, CV4, CV5, IN1, IN2, IN3, IN4, IN5, NUM_INPUTS };
-  enum OUTPUT_IDS { OUT1, OUT2, OUT3, OUT4, OUT5, ALL_OUT, LOUT, ROUT, NUM_OUTPUTS };
+  enum ParamIds { ATT1_PARAM, ATT2_PARAM, ATT3_PARAM, ATT4_PARAM, ATT5_PARAM, MIX1_PARAM, MIX2_PARAM, MIX3_PARAM, MIX4_PARAM, MIX5_PARAM, NUM_PARAMS };
+  enum InputIds { CV1_INPUT, CV2_INPUT, CV3_INPUT, CV4_INPUT, CV5_INPUT, IN1_INPUT, IN2_INPUT, IN3_INPUT, IN4_INPUT, IN5_INPUT, NUM_INPUTS };
+  enum OutputIds { OUT1_OUTPUT, OUT2_OUTPUT, OUT3_OUTPUT, OUT4_OUTPUT, OUT5_OUTPUT, ALL_OUTPUT, L_OUTPUT, R_OUTPUT, NUM_OUTPUTS };
 
   KI1H_MIX();
   void process(const ProcessArgs &args) override;
@@ -79,16 +79,16 @@ KI1H_MIX::KI1H_MIX() {
 
   // Configure parameters for all 6 channels
   for (int i = 0; i < 5; i++) {
-    configParam(ATT1 + i, -1.f, 1.f, 0.f, "Attenuverter" + std::to_string(i + 1), "%", 0.f, 100,
+    configParam(ATT1_PARAM + i, -1.f, 1.f, 0.f, "Attenuverter" + std::to_string(i + 1), "%", 0.f, 100,
                 0.f);
-    configParam(MIX1 + i, -1.2f, 1.2f, 0.f, "Level" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
-    configInput(CV1 + i, "CV" + std::to_string(i + 1));
-    configInput(IN1 + i, "In" + std::to_string(i + 1));
-    configOutput(OUT1 + i, "Out" + std::to_string(i + 1));
+    configParam(MIX1_PARAM + i, -1.2f, 1.2f, 0.f, "Level" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
+    configInput(CV1_INPUT + i, "CV" + std::to_string(i + 1));
+    configInput(IN1_INPUT + i, "In" + std::to_string(i + 1));
+    configOutput(OUT1_OUTPUT + i, "Out" + std::to_string(i + 1));
   }
-  configOutput(ALL_OUT, "All");
-  configOutput(LOUT, "Odds");
-  configOutput(ROUT, "Evens");
+  configOutput(ALL_OUTPUT, "All");
+  configOutput(L_OUTPUT, "Odds");
+  configOutput(R_OUTPUT, "Evens");
 };
 
 // ============================================================================
@@ -100,21 +100,21 @@ void KI1H_MIX::process(const ProcessArgs &args) {
   // Process all 6 channels
   for (int i = 0; i < 5; i++) {
     // Get input signal and CV
-    float input = inputs[IN1 + i].getVoltage();
+    float input = inputs[IN1_INPUT + i].getVoltage();
     // Get attenuverter parameter value
-    float attenuverter = params[MIX1 + i].getValue();
+    float attenuverter = params[MIX1_PARAM + i].getValue();
     float cv = 0.0f;
 
-    if (inputs[CV1 + i].isConnected())
-      cv = (inputs[CV1 + i].getVoltage() * params[ATT1 + i].getValue()) / CV_SCALE;
+    if (inputs[CV1_INPUT + i].isConnected())
+      cv = (inputs[CV1_INPUT + i].getVoltage() * params[ATT1_PARAM + i].getValue()) / CV_SCALE;
 
     // Process channel with CV scaled attenuverter
     channels[i].process(input, attenuverter + cv);
 
     // Set output
     float output = channels[i].getOutput();
-    outputs[OUT1 + i].setVoltage(output);
-    if (outputs[OUT1 + i].isConnected())
+    outputs[OUT1_OUTPUT + i].setVoltage(output);
+    if (outputs[OUT1_OUTPUT + i].isConnected())
       all[i] = 0.f;
     else
       all[i] = output;
@@ -123,9 +123,9 @@ void KI1H_MIX::process(const ProcessArgs &args) {
   mix.process(all);
 
   // Set mix outputs
-  outputs[LOUT].setVoltage(mix.getLeftOut());
-  outputs[ALL_OUT].setVoltage(mix.getAllOut());
-  outputs[ROUT].setVoltage(mix.getRightOUt());
+  outputs[L_OUTPUT].setVoltage(mix.getLeftOut());
+  outputs[ALL_OUTPUT].setVoltage(mix.getAllOut());
+  outputs[R_OUTPUT].setVoltage(mix.getRightOut());
 };
 
 KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
@@ -141,23 +141,23 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
   // VCA - CONTROL KNOBS
   // ============================================================================
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[0])), module,
-                                             KI1H_MIX::LOUT));
+                                             KI1H_MIX::L_OUTPUT));
   addOutput(
-      createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[0])), module, KI1H_MIX::ALL_OUT));
+      createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[0])), module, KI1H_MIX::ALL_OUTPUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
-                                             KI1H_MIX::ROUT));
+                                             KI1H_MIX::R_OUTPUT));
 
   for (int i = 0; i < 5; i++) {
     addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[1] - HALF_R)), module,
-                                               KI1H_MIX::OUT1 + i));
+                                               KI1H_MIX::OUT1_OUTPUT + i));
     addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[i], ROWS[2])), module,
-                                                 KI1H_MIX::MIX1 + i));
+                                                 KI1H_MIX::MIX1_PARAM + i));
     addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[i], ROWS[4] - HALF_R)), module,
-                                                 KI1H_MIX::ATT1 + i));
+                                                 KI1H_MIX::ATT1_PARAM + i));
     addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[i], ROWS[4] + (HALF_R / 2))),
-                                               module, KI1H_MIX::CV1 + i));
+                                               module, KI1H_MIX::CV1_INPUT + i));
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
-                                             KI1H_MIX::IN1 + i));
+                                             KI1H_MIX::IN1_INPUT + i));
   };
 };
 

@@ -134,7 +134,7 @@ struct ASDEnvelope : Envelope {
 // MODULE DEFINITION
 // ============================================================================
 struct KI1H_ENVELOPE : Module {
-  enum PARAM_IDS {
+  enum ParamIds {
     ATK1_PARAM,
     ATK2_PARAM,
     ATK3_PARAM,
@@ -145,24 +145,24 @@ struct KI1H_ENVELOPE : Module {
     SUS_PARAM,
     REL1_PARAM,
     REL2_PARAM,
-    ASR1_SWITCH,
-    ASR2_SWITCH,
+    ASR1_PARAM,
+    ASR2_PARAM,
     NUM_PARAMS
   };
-  enum INPUT_IDS { TRIGGER1_INPUT, TRIGGER2_INPUT, TRIGGER3_INPUT, TRIGGER4_INPUT, NUM_INPUTS };
-  enum OUTPUT_IDS {
-    OUT1,
-    OUT2,
-    OUT3,
-    OUT4,
-    EOA1,
-    EOA2,
-    EOA3,
-    EOA4,
-    EOR1,
-    EOR2,
-    EOR3,
-    EOR4,
+  enum InputIds { TRIGGER1_INPUT, TRIGGER2_INPUT, TRIGGER3_INPUT, TRIGGER4_INPUT, NUM_INPUTS };
+  enum OutputIds {
+    OUT1_OUTPUT,
+    OUT2_OUTPUT,
+    OUT3_OUTPUT,
+    OUT4_OUTPUT,
+    EOA1_OUTPUT,
+    EOA2_OUTPUT,
+    EOA3_OUTPUT,
+    EOA4_OUTPUT,
+    EOR1_OUTPUT,
+    EOR2_OUTPUT,
+    EOR3_OUTPUT,
+    EOR4_OUTPUT,
     NUM_OUTPUTS
   };
 
@@ -212,8 +212,8 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
   configParam(REL4_PARAM, 0.1f, 1.f, 0.1f, "ASD2 Release");
   configParam(SUS_PARAM, 0.1f, 1.f, 0.1f, "Sustain");
   configParam(SUS2_PARAM, 0.1f, 1.f, 0.1f, "Sustain2");
-  configParam(ASR1_SWITCH, 0.f, 1.f, 0.f, "AR/ASR Switch1");
-  configParam(ASR2_SWITCH, 0.f, 1.f, 0.f, "AR/ASR Switch2");
+  configParam(ASR1_PARAM, 0.f, 1.f, 0.f, "AR/ASR Switch1");
+  configParam(ASR2_PARAM, 0.f, 1.f, 0.f, "AR/ASR Switch2");
   configInput(TRIGGER1_INPUT, "AD1 Trigger");
   configInput(TRIGGER2_INPUT, "ASD1 Trigger");
   configInput(TRIGGER3_INPUT, "AD2 Trigger");
@@ -221,18 +221,18 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
 
   // configInput(ATK_CV, "Attack CV");
   // configInput(REL_CV, "Release CV");
-  configOutput(EOA1, "AD1 End of Attack");
-  configOutput(EOA2, "ASD1 End of Attack");
-  configOutput(EOA3, "AD2 End of Attack");
-  configOutput(EOA4, "ASD2 End of Attack");
-  configOutput(EOR1, "AD1 End of Release");
-  configOutput(EOR2, "ASD1 End of Release");
-  configOutput(EOR3, "AD2 End of Release");
-  configOutput(EOR4, "ASD2 End of Release");
-  configOutput(OUT1, "AD1 Output");
-  configOutput(OUT2, "ASD1 Output");
-  configOutput(OUT3, "AD2 Output");
-  configOutput(OUT4, "ASD2 Output");
+  configOutput(EOA1_OUTPUT, "AD1 End of Attack");
+  configOutput(EOA2_OUTPUT, "ASD1 End of Attack");
+  configOutput(EOA3_OUTPUT, "AD2 End of Attack");
+  configOutput(EOA4_OUTPUT, "ASD2 End of Attack");
+  configOutput(EOR1_OUTPUT, "AD1 End of Release");
+  configOutput(EOR2_OUTPUT, "ASD1 End of Release");
+  configOutput(EOR3_OUTPUT, "AD2 End of Release");
+  configOutput(EOR4_OUTPUT, "ASD2 End of Release");
+  configOutput(OUT1_OUTPUT, "AD1 Output");
+  configOutput(OUT2_OUTPUT, "ASD1 Output");
+  configOutput(OUT3_OUTPUT, "AD2 Output");
+  configOutput(OUT4_OUTPUT, "ASD2 Output");
 };
 
 // ============================================================================
@@ -260,9 +260,9 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     // a pair whose six outputs are all empty can be skipped whole, which also
     // skips its four convertCVToTimeInSeconds calls (a std::pow each).
     const bool pairLive =
-        outputs[OUT1 + adIdx].isConnected() || outputs[OUT1 + asdIdx].isConnected() ||
-        outputs[EOA1 + adIdx].isConnected() || outputs[EOA1 + asdIdx].isConnected() ||
-        outputs[EOR1 + adIdx].isConnected() || outputs[EOR1 + asdIdx].isConnected();
+        outputs[OUT1_OUTPUT + adIdx].isConnected() || outputs[OUT1_OUTPUT + asdIdx].isConnected() ||
+        outputs[EOA1_OUTPUT + adIdx].isConnected() || outputs[EOA1_OUTPUT + asdIdx].isConnected() ||
+        outputs[EOR1_OUTPUT + adIdx].isConnected() || outputs[EOR1_OUTPUT + asdIdx].isConnected();
     if (!pairLive)
       continue;
 
@@ -282,9 +282,9 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
 
     ad[i].process(args.sampleTime, adHeld);
 
-    outputs[OUT1 + adIdx].setVoltage(ad[i].env * CV_SCALE);
-    outputs[EOA1 + adIdx].setVoltage(ad[i].eoa * CV_SCALE);
-    outputs[EOR1 + adIdx].setVoltage(ad[i].eor * CV_SCALE);
+    outputs[OUT1_OUTPUT + adIdx].setVoltage(ad[i].env * CV_SCALE);
+    outputs[EOA1_OUTPUT + adIdx].setVoltage(ad[i].eoa * CV_SCALE);
+    outputs[EOR1_OUTPUT + adIdx].setVoltage(ad[i].eor * CV_SCALE);
 
     // ========================================================================
     // ASD STAGE
@@ -307,7 +307,7 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     // signal driving gateTrigger[asdIdx] is end-of-attack, which is a pulse,
     // not a gate, so holding off it would barely sustain at all.
     const bool asdHeld = chained ? gateTrigger[adIdx].isHigh() : gateTrigger[asdIdx].isHigh();
-    const bool asr = params[ASR1_SWITCH + i].getValue() > 0.f;
+    const bool asr = params[ASR1_PARAM + i].getValue() > 0.f;
     if (asdTriggered)
       asd[i].retrigger();
 
@@ -319,9 +319,9 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     if (chained && ad[i].env > asdVolt)
       asdVolt = ad[i].env;
 
-    outputs[OUT1 + asdIdx].setVoltage(asdVolt * CV_SCALE);
-    outputs[EOA1 + asdIdx].setVoltage(asd[i].eoa * CV_SCALE);
-    outputs[EOR1 + asdIdx].setVoltage(asd[i].eor * CV_SCALE);
+    outputs[OUT1_OUTPUT + asdIdx].setVoltage(asdVolt * CV_SCALE);
+    outputs[EOA1_OUTPUT + asdIdx].setVoltage(asd[i].eoa * CV_SCALE);
+    outputs[EOR1_OUTPUT + asdIdx].setVoltage(asd[i].eor * CV_SCALE);
   }
 };
 
@@ -346,21 +346,21 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[2] + HALF_R / 2)), module,
                                               KI1H_ENVELOPE::TRIGGER1_INPUT));
   addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[0] + HALF_C, ROWS[0])), module,
-                                             KI1H_ENVELOPE::EOA1));
+                                             KI1H_ENVELOPE::EOA1_OUTPUT));
   addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[1] + HALF_C, ROWS[0])), module,
-                                             KI1H_ENVELOPE::EOR1));
+                                             KI1H_ENVELOPE::EOR1_OUTPUT));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[1], ROWS[2] + HALF_R / 2)), module,
-                                              KI1H_ENVELOPE::OUT1));
+                                              KI1H_ENVELOPE::OUT1_OUTPUT));
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[2], ROWS[2] + HALF_R / 2)), module,
                                               KI1H_ENVELOPE::TRIGGER2_INPUT));
   addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[0])), module,
-                                             KI1H_ENVELOPE::EOA2));
+                                             KI1H_ENVELOPE::EOA2_OUTPUT));
   addParam(createParamCentered<BefacoToggle>(mm2px(Vec(COLUMNS[3], ROWS[2] + HALF_R / 2)), module,
-                                             KI1H_ENVELOPE::ASR1_SWITCH));
+                                             KI1H_ENVELOPE::ASR1_PARAM));
   addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
-                                             KI1H_ENVELOPE::EOR2));
+                                             KI1H_ENVELOPE::EOR2_OUTPUT));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[4], ROWS[2] + HALF_R / 2)), module,
-                                              KI1H_ENVELOPE::OUT2));
+                                              KI1H_ENVELOPE::OUT2_OUTPUT));
 
   addChild(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[0], ROWS[4] - HALF_R / 2)), module,
                                                KI1H_ENVELOPE::ATK3_PARAM));
@@ -375,21 +375,21 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
                                               KI1H_ENVELOPE::TRIGGER3_INPUT));
   addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[0] + HALF_C, ROWS[3] - HALF_R / 2)),
-                                             module, KI1H_ENVELOPE::EOA3));
+                                             module, KI1H_ENVELOPE::EOA3_OUTPUT));
   addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[1] + HALF_C, ROWS[3] - HALF_R / 2)),
-                                             module, KI1H_ENVELOPE::EOR3));
+                                             module, KI1H_ENVELOPE::EOR3_OUTPUT));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[1], ROWS[5])), module,
-                                              KI1H_ENVELOPE::OUT3));
+                                              KI1H_ENVELOPE::OUT3_OUTPUT));
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
                                               KI1H_ENVELOPE::TRIGGER4_INPUT));
   addParam(createParamCentered<BefacoToggle>(mm2px(Vec(COLUMNS[3], ROWS[5])), module,
-                                             KI1H_ENVELOPE::ASR2_SWITCH));
+                                             KI1H_ENVELOPE::ASR2_PARAM));
   addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[2] + HALF_C, ROWS[3] - HALF_R / 2)),
-                                             module, KI1H_ENVELOPE::EOA4));
+                                             module, KI1H_ENVELOPE::EOA4_OUTPUT));
   addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[3] - HALF_R / 2)),
-                                             module, KI1H_ENVELOPE::EOR4));
+                                             module, KI1H_ENVELOPE::EOR4_OUTPUT));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
-                                              KI1H_ENVELOPE::OUT4));
+                                              KI1H_ENVELOPE::OUT4_OUTPUT));
 };
 
 Model *modelKI1H_ENVELOPE = createModel<KI1H_ENVELOPE, KI1H_ENVELOPEWidget>("KI1H-ENVELOPE");
