@@ -1,14 +1,6 @@
-
-// ============================================================================
-// INCLUDES & GLOBAL VARIABLES
-// ============================================================================
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
 #include "plugin.hpp"
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
 
 // We want to make two AD and two ASR envelopes. When the AD out is not connected,
 // The envelope section should behave as an AHDSR env, otherwise it should act as
@@ -191,10 +183,6 @@ struct KI1H_ENVELOPEWidget : ModuleWidget {
   KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module);
 };
 
-// ============================================================================
-// PROCESS METHOD
-// ============================================================================
-
 // void ADEnvelope::process() {};
 
 // ============================================================================
@@ -234,10 +222,6 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
   configOutput(OUT3_OUTPUT, "AD2 Output");
   configOutput(OUT4_OUTPUT, "ASD2 Output");
 };
-
-// ============================================================================
-// Envelope - PARAMETER CONFIGURATION
-// ============================================================================
 
 void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   // ATK, TRIGGER, OUT, EOA and EOR all stride by 2 between the two AD/ASD

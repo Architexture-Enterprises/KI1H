@@ -1,17 +1,9 @@
-
-// ============================================================================
-// INCLUDES & GLOBAL VARIABLES
-// ============================================================================
 #include "plugin.hpp"
 #include <cmath>
 
 // Float pi, so the coefficient expressions below stay in single precision
 // instead of promoting through the double overloads of exp/cos/sin.
 static constexpr float PI_F = 3.14159265358979323846f;
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
 
 // ============================================================================
 // CLASS DEFINITION

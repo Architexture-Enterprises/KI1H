@@ -1,7 +1,3 @@
-
-// ============================================================================
-// INCLUDES & GLOBAL VARIABLES
-// ============================================================================
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
 #include "dsp.hpp"
@@ -90,10 +86,6 @@ KI1H_MIX::KI1H_MIX() {
   configOutput(L_OUTPUT, "Odds");
   configOutput(R_OUTPUT, "Evens");
 };
-
-// ============================================================================
-// CHANNELS - PARAMETER CONFIGURATION
-// ============================================================================
 
 void KI1H_MIX::process(const ProcessArgs &args) {
   std::array<float, 5> all;
