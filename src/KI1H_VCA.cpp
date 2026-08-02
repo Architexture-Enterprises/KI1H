@@ -4,6 +4,7 @@
 // ============================================================================
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
+#include "dsp.hpp"
 #include "plugin.hpp"
 #include <algorithm>
 #include <array>
@@ -11,37 +12,10 @@
 #include <string>
 
 // ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-namespace {
-float softLimit(float input) {
-  if (fabs(input) > 5.2f) {
-    float sign = (input >= 0) ? 1.0f : -1.0f;
-    float excess = fabs(input) - 5.2f;
-    return sign * (5.2f + excess * exp(-excess * 2.0f));
-  } else {
-    return input;
-  }
-}
-
-// ============================================================================
-// CHANNEL CLASS DEFINITION
-// ============================================================================
-struct Channel {
-  void process(float input, float cvIn);
-  float getOutput() const {
-    return output;
-  };
-
-  float output = 0.f;
-};
-} // namespace
-
-// ============================================================================
 // VCA CLASS DEFINITION
 // ============================================================================
 struct VCA {
-  void process(std::array<float, 5> channels, std::array<float, 5> pans);
+  void process(const std::array<float, 5> &channels, const std::array<float, 5> &pans);
   float getLeftOut() const {
     return leftOut;
   };
@@ -79,7 +53,7 @@ struct KI1H_VCA : Module {
   void process(const ProcessArgs &args) override;
 
 private:
-  Channel channels[5];
+  ki1h::Channel channels[5];
   VCA mix;
 };
 
@@ -91,19 +65,9 @@ struct KI1H_VCAWidget : ModuleWidget {
 };
 
 // ============================================================================
-// CHANNEL PROCESS METHOD
-// ============================================================================
-
-void Channel::process(float input, float cvIn) {
-  // CV is unipolar (0-1 range), acts as gain
-  float ampd = input * cvIn;
-  output = softLimit(ampd);
-};
-
-// ============================================================================
 // VCA PROCESS METHOD
 // ============================================================================
-void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
+void VCA::process(const std::array<float, 5> &channels, const std::array<float, 5> &pans) {
   float leftSum = 0.f;
   float rightSum = 0.f;
 
@@ -125,8 +89,8 @@ void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
     rightSum += channels[i] * rightGain;
   }
 
-  leftOut = softLimit(leftSum);
-  rightOut = softLimit(rightSum);
+  leftOut = ki1h::softLimit(leftSum);
+  rightOut = ki1h::softLimit(rightSum);
 };
 
 // ============================================================================
@@ -143,9 +107,9 @@ KI1H_VCA::KI1H_VCA() {
     configInput(IN1_INPUT + i, "In" + std::to_string(i + 1));
     configOutput(OUT1_OUTPUT + i, "Out" + std::to_string(i + 1));
   }
-  auto panCv1Switch = configSwitch(PAN_CV1_PARAM, 0.f, 1.f, 0.f, "CV1_INPUT Mode", {"Vol", "Pan"});
+  auto panCv1Switch = configSwitch(PAN_CV1_PARAM, 0.f, 1.f, 0.f, "CV1 Mode", {"Vol", "Pan"});
   panCv1Switch->snapEnabled = true;
-  auto panCv2Switch = configSwitch(PAN_CV2_PARAM, 0.f, 1.f, 0.f, "CV5_INPUT Mode", {"Vol", "Pan"});
+  auto panCv2Switch = configSwitch(PAN_CV2_PARAM, 0.f, 1.f, 0.f, "CV5 Mode", {"Vol", "Pan"});
   panCv2Switch->snapEnabled = true;
   configOutput(L_OUTPUT, "Left");
   configOutput(R_OUTPUT, "Right");
@@ -176,36 +140,23 @@ void KI1H_VCA::process(const ProcessArgs &args) {
       cv = inputs[CV1_INPUT + i].getVoltage();
     }
 
-    // Check PAN_CV switches for channel 1 and channel 5
-    if (i == 0) {
-      // Channel 1: Check PAN_CV1_PARAM switch (0 = volume mode, 1 = panning mode)
-      int panCv1Mode = (int)params[PAN_CV1_PARAM].getValue();
-      if (panCv1Mode == 1 && inputs[CV1_INPUT + i].isConnected()) {
-        // CV controls panning (0-10V -> -1 to +1 pan, 5V = center)
-        float cvPan = (cv / 5.f); // Map 0-10V to -1 to +1
-        pan = std::max(-1.f, std::min(1.f, cvPan));
-      } else if (panCv1Mode == 0 && inputs[CV1_INPUT + i].isConnected()) {
+    // Channels 1 and 5 have a switch selecting what their CV does; channels
+    // 2-4 are always volume. Pick the mode first, then apply it once.
+    // 0 = volume mode, 1 = panning mode.
+    const int cvMode = (i == 0)   ? (int)params[PAN_CV1_PARAM].getValue()
+                       : (i == 4) ? (int)params[PAN_CV2_PARAM].getValue()
+                                  : 0;
+
+    if (inputs[CV1_INPUT + i].isConnected()) {
+      if (cvMode == 1) {
+        // CV controls panning. Note this maps 0-5 V onto centre-to-hard-right
+        // and clamps everything above 5 V; the "5V = center" comment this
+        // replaced described a bipolar mapping the code never implemented.
+        // Preserved as-is — changing it would change the sound.
+        pan = std::max(-1.f, std::min(1.f, cv / 5.f));
+      } else {
         // CV controls volume (0-10V -> 0-1 gain)
-        float cvGain = std::max(0.f, std::min(1.f, cv / 10.f));
-        level *= cvGain;
-      }
-    } else if (i == 4) {
-      // Channel 5: Check PAN_CV2_PARAM switch (0 = volume mode, 1 = panning mode)
-      int panCv2Mode = (int)params[PAN_CV2_PARAM].getValue();
-      if (panCv2Mode == 1 && inputs[CV1_INPUT + i].isConnected()) {
-        // CV controls panning (0-10V -> -1 to +1 pan, 5V = center)
-        float cvPan = (cv / 5.f); // Map 0-10V to -1 to +1
-        pan = std::max(-1.f, std::min(1.f, cvPan));
-      } else if (panCv2Mode == 0 && inputs[CV1_INPUT + i].isConnected()) {
-        // CV controls volume (0-10V -> 0-1 gain)
-        float cvGain = std::max(0.f, std::min(1.f, cv / 10.f));
-        level *= cvGain;
-      }
-    } else {
-      // Channels 2, 3, 4: CV always controls volume
-      if (inputs[CV1_INPUT + i].isConnected()) {
-        float cvGain = std::max(0.f, std::min(1.f, cv / 10.f));
-        level *= cvGain;
+        level *= std::max(0.f, std::min(1.f, cv / 10.f));
       }
     }
 
@@ -242,11 +193,7 @@ KI1H_VCAWidget::KI1H_VCAWidget(KI1H_VCA *module) {
   // ============================================================================
   // PANEL SCREWS
   // ============================================================================
-  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
-  addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
-  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-  addChild(createWidget<ScrewBlack>(
-      Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+  addPanelScrews(this);
 
   // ============================================================================
   // VCA - CONTROL KNOBS

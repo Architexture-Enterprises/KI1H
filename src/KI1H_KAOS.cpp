@@ -1,8 +1,13 @@
 #include "plugin.hpp"
-#include <random>
 
 struct KAOS {
 public:
+  KAOS() {
+    // Seeded from the global generator at construction time, which happens on
+    // the UI thread — never from process().
+    rng.seed(rack::random::u64(), rack::random::u64());
+  }
+
   void process(float color, float bkIn, float pkIn);
   float getNoise() const {
     return noise;
@@ -25,15 +30,25 @@ public:
   // Pink noise state variables (Paul Kellet's algorithm)
   float pinkState[5] = {0.f, 0.f, 0.f, 0.f, 0.f};
 
+  // Per-instance noise stream. rack::random::local() backs the global
+  // random::normal(), and the SDK documents it as no longer thread-local, so
+  // sharing it would still race across engine worker threads.
+  rack::random::Xoroshiro128Plus rng;
+
+  /** Uniform float in [0, 1) drawn from this instance's stream. */
+  float uniform() {
+    return (uint32_t)(rng() >> 32) * 2.32830629e-10f;
+  }
+
   // Noise generation methods
-  float generateNoise(float seed);
+  float generateNoise();
   float generateBrownNoise(float whiteNoise);
   float generatePinkNoise(float whiteNoise);
 };
 
 void KAOS::process(float color, float bkIn, float pkIn) {
   // Generate proper white, brown, and pink noise
-  float wNoise = generateNoise(noise);
+  float wNoise = generateNoise();
   float brownNoise = generateBrownNoise(wNoise);
   float pinkNoise = generatePinkNoise(wNoise);
 
@@ -70,12 +85,11 @@ void KAOS::process(float color, float bkIn, float pkIn) {
 // SAMPLE AND HOLD CLASS - NOISE GENERATORS
 // ============================================================================
 
-float KAOS::generateNoise(float seed) {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  static std::normal_distribution<float> dis(0.0f, 1.0f);
-
-  return dis(gen) * 1.5f;
+float KAOS::generateNoise() {
+  // Box-Muller, matching the distribution rack::random::normal() produces.
+  float radius = std::sqrt(-2.f * std::log(1.f - uniform()));
+  float theta = 2.f * M_PI * uniform();
+  return radius * std::sin(theta) * 1.5f;
 }
 
 float KAOS::generateBrownNoise(float whiteNoise) {
