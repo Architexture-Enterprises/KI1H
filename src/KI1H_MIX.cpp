@@ -38,7 +38,7 @@ struct Channel {
 // MIX CLASS DEFINITION
 // ============================================================================
 struct Mix {
-  void process(std::array<float, 5> all);
+  void process(const std::array<float, 5> &all);
   float getAllOut() const {
     return allOut;
   };
@@ -90,7 +90,7 @@ void Channel::process(float input, float cvIn) {
 // ============================================================================
 // MIX PROCESS METHOD
 // ============================================================================
-void Mix::process(std::array<float, 5> all) {
+void Mix::process(const std::array<float, 5> &all) {
   std::array<float, 2> evens;
   std::array<float, 3> odds;
   for (std::size_t i = 0; i < all.size(); i++) {
