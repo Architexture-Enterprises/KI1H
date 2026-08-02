@@ -11,23 +11,10 @@
 #include <string>
 
 // ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-float softLimit(float input) {
-  if (fabs(input) > 5.2f) {
-    float sign = (input >= 0) ? 1.0f : -1.0f;
-    float excess = fabs(input) - 5.2f;
-    return sign * (5.2f + excess * exp(-excess * 2.0f));
-  } else {
-    return input;
-  }
-}
-
-// ============================================================================
 // MIX CLASS DEFINITION
 // ============================================================================
 struct Mix {
-  void process(std::array<float, 5> all);
+  void process(const std::array<float, 5> &all);
   float getAllOut() const {
     return allOut;
   };
@@ -57,7 +44,7 @@ struct KI1H_MIX : Module {
 private:
   ki1h::Channel channels[5];
   Mix mix;
-  float CV_SCALE = 5.f;
+  static constexpr float CV_SCALE = 5.f;
 };
 
 // ============================================================================
@@ -70,18 +57,18 @@ struct KI1H_MIXWidget : ModuleWidget {
 // ============================================================================
 // MIX PROCESS METHOD
 // ============================================================================
-void Mix::process(std::array<float, 5> all) {
+void Mix::process(const std::array<float, 5> &all) {
   std::array<float, 2> evens;
   std::array<float, 3> odds;
-  for (unsigned long i = 0; i < sizeof(all); i++) {
+  for (std::size_t i = 0; i < all.size(); i++) {
     if (i % 2 == 0)
       odds[i / 2] = all[i];
     else
       evens[i / 2] = all[i];
   }
-  allOut = softLimit(std::accumulate(all.begin(), all.end(), 0.0f));
-  leftOut = softLimit(std::accumulate(odds.begin(), odds.end(), 0.0f));
-  rightOut = softLimit(std::accumulate(evens.begin(), evens.end(), 0.0f));
+  allOut = ki1h::softLimit(std::accumulate(all.begin(), all.end(), 0.0f));
+  leftOut = ki1h::softLimit(std::accumulate(odds.begin(), odds.end(), 0.0f));
+  rightOut = ki1h::softLimit(std::accumulate(evens.begin(), evens.end(), 0.0f));
 };
 
 // ============================================================================
@@ -127,7 +114,7 @@ void KI1H_MIX::process(const ProcessArgs &args) {
     // Set output
     float output = channels[i].getOutput();
     outputs[OUT1 + i].setVoltage(output);
-    if (outputs[CV1 + i].isConnected())
+    if (outputs[OUT1 + i].isConnected())
       all[i] = 0.f;
     else
       all[i] = output;

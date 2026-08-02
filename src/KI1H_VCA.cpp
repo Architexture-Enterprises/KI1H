@@ -12,25 +12,10 @@
 #include <string>
 
 // ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-namespace {
-float softLimit(float input) {
-  if (fabs(input) > 5.2f) {
-    float sign = (input >= 0) ? 1.0f : -1.0f;
-    float excess = fabs(input) - 5.2f;
-    return sign * (5.2f + excess * exp(-excess * 2.0f));
-  } else {
-    return input;
-  }
-}
-} // namespace
-
-// ============================================================================
 // VCA CLASS DEFINITION
 // ============================================================================
 struct VCA {
-  void process(std::array<float, 5> channels, std::array<float, 5> pans);
+  void process(const std::array<float, 5> &channels, const std::array<float, 5> &pans);
   float getLeftOut() const {
     return leftOut;
   };
@@ -82,7 +67,7 @@ struct KI1H_VCAWidget : ModuleWidget {
 // ============================================================================
 // VCA PROCESS METHOD
 // ============================================================================
-void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
+void VCA::process(const std::array<float, 5> &channels, const std::array<float, 5> &pans) {
   float leftSum = 0.f;
   float rightSum = 0.f;
 
@@ -104,8 +89,8 @@ void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
     rightSum += channels[i] * rightGain;
   }
 
-  leftOut = softLimit(leftSum);
-  rightOut = softLimit(rightSum);
+  leftOut = ki1h::softLimit(leftSum);
+  rightOut = ki1h::softLimit(rightSum);
 };
 
 // ============================================================================
