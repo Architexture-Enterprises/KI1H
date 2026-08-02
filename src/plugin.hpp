@@ -28,24 +28,34 @@ constexpr float HALF_C = 7.5f;
 constexpr float COLUMN_START = 10.64f;
 constexpr int NUM_COLUMNS = 5;
 
-// Programmatically generated row positions using constexpr function
+// getRowPosition / getColumnPosition take 1-based positions and exist only to
+// build the arrays below. Widget code uses the arrays, which are 0-based:
+// ROWS[0] is row 1, COLUMNS[0] is column 1.
 constexpr float getRowPosition(int row) {
   return ROW_START + (row - 1) * ROW_SPACING;
 }
 
-// Alternative: Access via array (0-indexed, so ROWS[0] = ROW1)
 constexpr std::array<float, NUM_ROWS> ROWS = {getRowPosition(1), getRowPosition(2),
                                               getRowPosition(3), getRowPosition(4),
                                               getRowPosition(5), getRowPosition(6)};
-// Programmatically generated row positions using constexpr function
+
 constexpr float getColumnPosition(int column) {
   return COLUMN_START + (column - 1) * COLUMN_SPACING;
 }
 
-// Alternative: Access via array (0-indexed, so ROWS[0] = ROW1)
 constexpr std::array<float, NUM_COLUMNS> COLUMNS = {getColumnPosition(1), getColumnPosition(2),
                                                     getColumnPosition(3), getColumnPosition(4),
                                                     getColumnPosition(5)};
+
+/** Adds the four corner screws every full-width KI1H panel carries.
+Call after setPanel(), which is what gives box.size its final width. */
+inline void addPanelScrews(ModuleWidget *w) {
+  w->addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
+  w->addChild(createWidget<ScrewBlack>(Vec(w->box.size.x - 2 * RACK_GRID_WIDTH, 0)));
+  w->addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+  w->addChild(createWidget<ScrewBlack>(
+      Vec(w->box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+}
 
 struct BananutOrange : app::SvgPort {
   BananutOrange() {
