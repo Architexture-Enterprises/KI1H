@@ -186,16 +186,16 @@ struct KI1H_ENVELOPEWidget : ModuleWidget {
 // ============================================================================
 KI1H_ENVELOPE::KI1H_ENVELOPE() {
   config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS);
-  configParam(ATK1_PARAM, 0.1f, 1.f, 0.1f, "AD1 Attack");
-  configParam(ATK2_PARAM, 0.1f, 1.f, 0.1f, "ASD1 Attack");
-  configParam(ATK3_PARAM, 0.1f, 1.f, 0.1f, "AD2 Attack");
-  configParam(ATK4_PARAM, 0.1f, 1.f, 0.1f, "ASD2 Attack");
-  configParam(REL1_PARAM, 0.1f, 1.f, 0.1f, "AD1 Release");
-  configParam(REL2_PARAM, 0.1f, 1.f, 0.1f, "ASD1 Release");
-  configParam(REL3_PARAM, 0.1f, 1.f, 0.1f, "AD2 Release");
-  configParam(REL4_PARAM, 0.1f, 1.f, 0.1f, "ASD2 Release");
-  configParam(SUS_PARAM, 0.1f, 1.f, 0.1f, "Sustain");
-  configParam(SUS2_PARAM, 0.1f, 1.f, 0.1f, "Sustain2");
+  configParam(ATK1_PARAM, 0.f, 1.f, 0.1f, "AD1 Attack");
+  configParam(ATK2_PARAM, 0.f, 1.f, 0.1f, "ASD1 Attack");
+  configParam(ATK3_PARAM, 0.f, 1.f, 0.1f, "AD2 Attack");
+  configParam(ATK4_PARAM, 0.f, 1.f, 0.1f, "ASD2 Attack");
+  configParam(REL1_PARAM, 0.f, 1.f, 0.1f, "AD1 Release");
+  configParam(REL2_PARAM, 0.f, 1.f, 0.1f, "ASD1 Release");
+  configParam(REL3_PARAM, 0.f, 1.f, 0.1f, "AD2 Release");
+  configParam(REL4_PARAM, 0.f, 1.f, 0.1f, "ASD2 Release");
+  configParam(SUS_PARAM, 0.f, 1.f, 0.1f, "Sustain");
+  configParam(SUS2_PARAM, 0.f, 1.f, 0.1f, "Sustain2");
   configParam(ASR1_PARAM, 0.f, 1.f, 0.f, "AR/ASR Switch1");
   configParam(ASR2_PARAM, 0.f, 1.f, 0.f, "AR/ASR Switch2");
   configInput(TRIGGER1_INPUT, "AD1 Trigger");
@@ -247,10 +247,8 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     // ========================================================================
     // AD STAGE
     // ========================================================================
-    ad[i].attackTime =
-        convertCVToTimeInSeconds(clamp(params[ATK1_PARAM + adIdx].getValue(), 0.f, 1.f));
-    ad[i].releaseTime =
-        convertCVToTimeInSeconds(clamp(params[adRelParam[i]].getValue(), 0.f, 1.f));
+    ad[i].attackTime = convertCVToTimeInSeconds(params[ATK1_PARAM + adIdx].getValue());
+    ad[i].releaseTime = convertCVToTimeInSeconds(params[adRelParam[i]].getValue());
 
     const bool adTriggered =
         gateTrigger[adIdx].process(inputs[TRIGGER1_INPUT + adIdx].getVoltage());
@@ -267,11 +265,9 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     // ========================================================================
     // ASD STAGE
     // ========================================================================
-    asd[i].attackTime =
-        convertCVToTimeInSeconds(clamp(params[ATK1_PARAM + asdIdx].getValue(), 0.f, 1.f));
-    asd[i].sustain = clamp(params[asdSusParam[i]].getValue(), 0.f, 1.f);
-    asd[i].releaseTime =
-        convertCVToTimeInSeconds(clamp(params[asdRelParam[i]].getValue(), 0.f, 1.f));
+    asd[i].attackTime = convertCVToTimeInSeconds(params[ATK1_PARAM + asdIdx].getValue());
+    asd[i].sustain = params[asdSusParam[i]].getValue();
+    asd[i].releaseTime = convertCVToTimeInSeconds(params[asdRelParam[i]].getValue());
 
     // With nothing patched into the ASD's own trigger, the pair acts as one
     // AHDSR: the ASD is fired by the AD's end-of-attack.
