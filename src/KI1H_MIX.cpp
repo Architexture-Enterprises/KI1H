@@ -1,5 +1,3 @@
-#include "componentlibrary.hpp"
-#include "helpers.hpp"
 #include "dsp.hpp"
 #include "plugin.hpp"
 #include <array>

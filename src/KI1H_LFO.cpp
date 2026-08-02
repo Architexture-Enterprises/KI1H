@@ -6,7 +6,6 @@
 // SWAVE_PARAM {"Sawtooth", "Ramp", "Triangle"}.
 enum LFOWaves { LFO_SINE, LFO_SAW, LFO_SQUARE };
 enum SHWaves { SH_SAW, SH_RAMP, SH_TRIANGLE };
-#include "random"
 
 // ============================================================================
 // LFO CLASS DEFINITION

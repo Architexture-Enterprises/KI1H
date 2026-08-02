@@ -1,5 +1,3 @@
-#include "componentlibrary.hpp"
-#include "helpers.hpp"
 #include "plugin.hpp"
 
 // We want to make two AD and two ASR envelopes. When the AD out is not connected,
