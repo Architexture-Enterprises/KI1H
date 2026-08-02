@@ -4,6 +4,12 @@
 #include "dsp.hpp"
 #include "plugin.hpp"
 
+// Waveform switch positions. Order must match the configSwitch label lists in
+// the constructor: WAVE_PARAM {"Triangle", "Sawtooth", "Pulse"} and
+// WAVE2_PARAM {"Sin-Saw", "Pulse"}.
+enum Waves { WAVE_TRI, WAVE_SAW, WAVE_SQ };
+enum ShaperWaves { SHAPER_SINSAW, SHAPER_PULSE };
+
 // ============================================================================
 // OSCILLATOR BASE CLASS
 // ============================================================================
@@ -152,7 +158,6 @@ struct KI1H_VCO : Module {
   };
   enum OutputIds { WAVE_OUTPUT, WAVE2_OUTPUT, SUB_OUTPUT, NUM_OUTPUTS };
   enum LightIds { BLINK1_LIGHT, BLINK2_LIGHT, NUM_LIGHTS };
-  enum Waves { WAVE_TRI, WAVE_SAW, WAVE_SQ, WAVE_PWM };
 
   KI1H_VCO();
   void process(const ProcessArgs &args) override;
@@ -231,13 +236,13 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
   // exactly once per sample whatever the waveform, so switching waveform lets
   // any residual correction decay out rather than desyncing the buffer.
   switch (waveType) {
-  case 0:
+  case WAVE_TRI:
     // Triangle is continuous. Its slope discontinuity would need a MinBLAMP,
     // which the SDK does not ship; it also aliases far less (-12 dB/oct
     // against a saw's -6).
     output = ki1h::triangle(phase.phase);
     break;
-  case 1: {
+  case WAVE_SAW: {
     // Falling saw: steps from -1 up to +1 at the wrap.
     const float p = crossing(0.f);
     if (p <= 0.f)
@@ -245,7 +250,7 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
     output = ki1h::saw(phase.phase);
     break;
   }
-  case 2: {
+  case WAVE_SQ: {
     const float pw = clampPulseWidth(pulseWidth);
     const float pRise = crossing(0.f);
     if (pRise <= 0.f)
@@ -332,7 +337,7 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
   // Band-limiting. When a sync reset already happened this sample its BLEP
   // covers the jump, so the natural wrap must not be corrected as well.
   switch (waveType) {
-  case 0:
+  case SHAPER_SINSAW:
     // The Fourier series in generateShapedWave is a sum of sines and is
     // already band-limited. Its `harmonicReduction < 0.01` shortcut is not —
     // that path returns a raw rising saw, which steps from +1 down to -1.
@@ -343,7 +348,7 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
     }
     output = generateShapedWave(phase.phase, shape);
     break;
-  case 1: {
+  case SHAPER_PULSE: {
     if (!synced) {
       const float pw = clampPulseWidth(shape);
       const float pRise = crossing(0.f);
