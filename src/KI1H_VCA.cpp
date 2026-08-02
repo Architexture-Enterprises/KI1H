@@ -4,6 +4,7 @@
 // ============================================================================
 #include "componentlibrary.hpp"
 #include "helpers.hpp"
+#include "dsp.hpp"
 #include "plugin.hpp"
 #include <algorithm>
 #include <array>
@@ -11,37 +12,10 @@
 #include <string>
 
 // ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-namespace {
-float softLimit(float input) {
-  if (fabs(input) > 5.2f) {
-    float sign = (input >= 0) ? 1.0f : -1.0f;
-    float excess = fabs(input) - 5.2f;
-    return sign * (5.2f + excess * exp(-excess * 2.0f));
-  } else {
-    return input;
-  }
-}
-
-// ============================================================================
-// CHANNEL CLASS DEFINITION
-// ============================================================================
-struct Channel {
-  void process(float input, float cvIn);
-  float getOutput() const {
-    return output;
-  };
-
-  float output = 0.f;
-};
-} // namespace
-
-// ============================================================================
 // VCA CLASS DEFINITION
 // ============================================================================
 struct VCA {
-  void process(std::array<float, 5> channels, std::array<float, 5> pans);
+  void process(const std::array<float, 5> &channels, const std::array<float, 5> &pans);
   float getLeftOut() const {
     return leftOut;
   };
@@ -79,7 +53,7 @@ struct KI1H_VCA : Module {
   void process(const ProcessArgs &args) override;
 
 private:
-  Channel channels[5];
+  ki1h::Channel channels[5];
   VCA mix;
 };
 
@@ -91,19 +65,9 @@ struct KI1H_VCAWidget : ModuleWidget {
 };
 
 // ============================================================================
-// CHANNEL PROCESS METHOD
-// ============================================================================
-
-void Channel::process(float input, float cvIn) {
-  // CV is unipolar (0-1 range), acts as gain
-  float ampd = input * cvIn;
-  output = softLimit(ampd);
-};
-
-// ============================================================================
 // VCA PROCESS METHOD
 // ============================================================================
-void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
+void VCA::process(const std::array<float, 5> &channels, const std::array<float, 5> &pans) {
   float leftSum = 0.f;
   float rightSum = 0.f;
 
@@ -125,8 +89,8 @@ void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
     rightSum += channels[i] * rightGain;
   }
 
-  leftOut = softLimit(leftSum);
-  rightOut = softLimit(rightSum);
+  leftOut = ki1h::softLimit(leftSum);
+  rightOut = ki1h::softLimit(rightSum);
 };
 
 // ============================================================================
