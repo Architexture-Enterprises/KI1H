@@ -80,7 +80,7 @@ struct KI1H_LFO : Module {
 private:
   LFO lfo1, lfo2;
   SampleAndHold SNH;
-  float CV_SCALE = 5.f;
+  static constexpr float CV_SCALE = 5.f;
 };
 
 // ============================================================================

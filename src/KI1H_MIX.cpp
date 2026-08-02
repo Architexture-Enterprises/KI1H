@@ -68,7 +68,7 @@ struct KI1H_MIX : Module {
 private:
   Channel channels[5];
   Mix mix;
-  float CV_SCALE = 5.f;
+  static constexpr float CV_SCALE = 5.f;
 };
 
 // ============================================================================

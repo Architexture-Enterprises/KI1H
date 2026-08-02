@@ -34,8 +34,8 @@ struct LPFilter : Filter {
     for (int i = 0; i < 12; i++)
       stages[i] = 0.f;
   }
-  float minFreq = 20.f;
-  float maxFreq = 22000.f;
+  static constexpr float minFreq = 20.f;
+  static constexpr float maxFreq = 22000.f;
   float stages[12] = {};
   float cutoff_coeff = 0.f;
 
@@ -47,8 +47,8 @@ struct LPFilter : Filter {
 
 struct BPFilter : Filter {
   void process(float input, float frequency, float width, float resonance, float sampletime);
-  float minFreq = 30.f;
-  float maxFreq = 15000.f;
+  static constexpr float minFreq = 30.f;
+  static constexpr float maxFreq = 15000.f;
   void setCoefficients(float w, float q) {
     float cos_w = std::cos(w);
     float sin_w = std::sin(w);
@@ -100,8 +100,8 @@ struct HPFilter : Filter {
     cachedCutoff = -1.f;
     cachedSampletime = -1.f;
   }
-  float minFreq = 30.f;
-  float maxFreq = 10000.f;
+  static constexpr float minFreq = 30.f;
+  static constexpr float maxFreq = 10000.f;
   float prev_input = 1.f;
   float prev_output = 1.f;
 
@@ -261,7 +261,7 @@ KI1H_FILTER::KI1H_FILTER() {
   // ============================================================================
   // LP FILTER
   // ============================================================================
-  configParam(KI1H_FILTER::LPFreq, KI1H_FILTER::lpfilter.minFreq, KI1H_FILTER::lpfilter.maxFreq,
+  configParam(KI1H_FILTER::LPFreq, LPFilter::minFreq, LPFilter::maxFreq,
               1000.f, "LP Freq", " Hz", 0.f, 1.f, 0.f);
   configParam(KI1H_FILTER::LPRes, 0.f, 1.666f, 0.f, "LP Resonance", " %", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::LPIN, "LP In");
@@ -271,7 +271,7 @@ KI1H_FILTER::KI1H_FILTER() {
   // ============================================================================
   // BP FILTERS
   // ============================================================================
-  configParam(KI1H_FILTER::BPFreq1, KI1H_FILTER::bpfilter1.minFreq, KI1H_FILTER::bpfilter1.maxFreq,
+  configParam(KI1H_FILTER::BPFreq1, BPFilter::minFreq, BPFilter::maxFreq,
               1000.f, "BP1 Freq", " Hz", 0.f, 1.f, 0.f);
   configParam(KI1H_FILTER::BPWidth1, 0.5f, 5.f, 1.f, "BP1 Width", " %", 0.f, 20.f, 0.f);
   configParam(KI1H_FILTER::BPRes1, 0.01f, 1.666f, 0.01f, "BP1 Resonance", " %", 0.f, 1.f, 0.f);
@@ -280,7 +280,7 @@ KI1H_FILTER::KI1H_FILTER() {
   configInput(KI1H_FILTER::BPWIDTH1_IN, "BP1 Width");
   configOutput(KI1H_FILTER::BPOUT1, "BP1 Out");
 
-  configParam(KI1H_FILTER::BPFreq2, KI1H_FILTER::bpfilter2.minFreq, KI1H_FILTER::bpfilter2.maxFreq,
+  configParam(KI1H_FILTER::BPFreq2, BPFilter::minFreq, BPFilter::maxFreq,
               1000.f, "BP2 Freq", " Hz", 0.f, 1.f, 0.f);
   configParam(KI1H_FILTER::BPWidth2, 0.5f, 5.f, 1.f, "BP2 Width", " %", 0.f, 20.f, 0.f);
   configParam(KI1H_FILTER::BPRes2, 0.01f, 1.666f, 0.01f, "BP2 Resonance", " %", 0.f, 1.f, 0.f);
@@ -292,7 +292,7 @@ KI1H_FILTER::KI1H_FILTER() {
   // ============================================================================
   // HP FILTER
   // ============================================================================
-  configParam(KI1H_FILTER::HPFreq, KI1H_FILTER::hpfilter.minFreq, KI1H_FILTER::hpfilter.maxFreq,
+  configParam(KI1H_FILTER::HPFreq, HPFilter::minFreq, HPFilter::maxFreq,
               30.f, "HP Freq", " Hz", 0.f, 1.f, 0.f);
   configInput(KI1H_FILTER::HPIN, "HP In");
   configInput(KI1H_FILTER::HPMOD_IN, "HP FM");
