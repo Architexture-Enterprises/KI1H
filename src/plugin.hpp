@@ -47,6 +47,16 @@ constexpr std::array<float, NUM_COLUMNS> COLUMNS = {getColumnPosition(1), getCol
                                                     getColumnPosition(3), getColumnPosition(4),
                                                     getColumnPosition(5)};
 
+/** Adds the four corner screws every full-width KI1H panel carries.
+Call after setPanel(), which is what gives box.size its final width. */
+inline void addPanelScrews(ModuleWidget *w) {
+  w->addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
+  w->addChild(createWidget<ScrewBlack>(Vec(w->box.size.x - 2 * RACK_GRID_WIDTH, 0)));
+  w->addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+  w->addChild(createWidget<ScrewBlack>(
+      Vec(w->box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+}
+
 struct BananutOrange : app::SvgPort {
   BananutOrange() {
     setSvg(Svg::load(asset::plugin(pluginInstance, "res/BananutOrange.svg")));
