@@ -10,3 +10,6 @@
 /build
 /dep
 /dist
+
+# Generated locally (bear -- make / compiledb make); machine-specific paths
+compile_commands.json
