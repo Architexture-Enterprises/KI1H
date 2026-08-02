@@ -1,6 +1,7 @@
 // ============================================================================
 // INCLUDES & GLOBAL VARIABLES
 // ============================================================================
+#include "dsp.hpp"
 #include "plugin.hpp"
 
 // ============================================================================
@@ -66,16 +67,10 @@ struct Oscillator {
 
   void updatePhases(float freq, float sampleTime);
   float calculateFreq(float pitch);
-  float generateSine(float ph);
-  float generateSquare(float ph, float pw);
-  /** The pulse-width clamp generateSquare applies, exposed so the crossing
+  /** The pulse-width clamp ki1h::square applies, exposed so the crossing
   detection uses the same threshold the waveform does. */
   static float clampPulseWidth(float pw) {
-    if (pw > 0.9f)
-      pw = 0.9f;
-    if (pw < 0.1f)
-      pw = 0.1f;
-    return pw;
+    return clamp(pw, 0.1f, 0.9f);
   }
 };
 
@@ -95,10 +90,6 @@ struct RawOscillator : Oscillator {
   // oversampling is what Rack's own VCO uses.
   dsp::MinBlepGenerator<16, 16> mainBlep;
   dsp::MinBlepGenerator<16, 16> subBlep;
-
-  float generateTriangle(float ph);
-  float generateSaw(float ph);
-  float generateSub(float ph);
 };
 
 // ============================================================================
@@ -200,14 +191,6 @@ void Oscillator::updatePhases(float freq, float sampleTime) {
   blinkPhase = phase;
 }
 
-float Oscillator::generateSine(float ph) {
-  return std::sin(2.f * M_PI * ph);
-}
-
-float Oscillator::generateSquare(float ph, float pw) {
-  return (ph > clampPulseWidth(pw)) ? -1.f : 1.f;
-}
-
 // ============================================================================
 // RAWOSCILLATOR CLASS
 // ============================================================================
@@ -217,7 +200,7 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
 
   updatePhases(freq, sampleTime);
 
-  sin = generateSine(phase);
+  sin = ki1h::sine(phase);
 
   // ==========================================================================
   // SUB OSCILLATOR (50% square, one octave down)
@@ -241,7 +224,7 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
     if (sp <= 0.f)
       subBlep.insertDiscontinuity(sp, -2.f);
 
-    sub = generateSub(subPhase) + subBlep.process();
+    sub = ki1h::square(subPhase) + subBlep.process();
   } else {
     sub = 0.f;
   }
@@ -258,14 +241,14 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
     // Triangle is continuous. Its slope discontinuity would need a MinBLAMP,
     // which the SDK does not ship; it also aliases far less (-12 dB/oct
     // against a saw's -6).
-    output = generateTriangle(phase);
+    output = ki1h::triangle(phase);
     break;
   case 1: {
     // Falling saw: steps from -1 up to +1 at the wrap.
     const float p = crossing(0.f);
     if (p <= 0.f)
       mainBlep.insertDiscontinuity(p, 2.f);
-    output = generateSaw(phase);
+    output = ki1h::saw(phase);
     break;
   }
   case 2: {
@@ -276,7 +259,7 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
     const float pFall = crossing(pw);
     if (pFall <= 0.f)
       mainBlep.insertDiscontinuity(pFall, -2.f);
-    output = generateSquare(phase, pulseWidth);
+    output = ki1h::square(phase, pw);
     break;
   }
   default:
@@ -284,21 +267,6 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
   }
 
   output += mainBlep.process();
-}
-
-float RawOscillator::generateTriangle(float ph) {
-  if (ph < 0.5f)
-    return ph * 4.f - 1.f; // Rising: 0→0.5 becomes -1→+1
-  else
-    return 3.f - ph * 4.f; // Falling: 0.5→1 becomes +1→-1
-}
-
-float RawOscillator::generateSaw(float ph) {
-  return ph * -2.f + 1.f; // Maps 0→1 phase to -1→+1
-}
-
-float RawOscillator::generateSub(float ph) {
-  return (ph > 0.5f) ? -1.f : 1.f;
 }
 
 // ============================================================================
@@ -353,7 +321,7 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
     }
   }
 
-  sin = generateSine(phase);
+  sin = ki1h::sine(phase);
 
   // generateShapedWave is the most expensive routine in the plugin. Skip it
   // when WAVE2_OUTPUT is empty. The phase accumulation and sync above still
@@ -390,7 +358,7 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
       if (pFall <= 0.f)
         blep.insertDiscontinuity(pFall, -2.f);
     }
-    output = generateSquare(phase, shape);
+    output = ki1h::square(phase, shape);
     break;
   }
   default:
@@ -406,7 +374,7 @@ float ShaperOscillator::waveAt(float ph, float shape, int waveType) {
   case 0:
     return generateShapedWave(ph, shape);
   case 1:
-    return generateSquare(ph, shape);
+    return ki1h::square(ph, shape);
   default:
     return 0.f;
   }

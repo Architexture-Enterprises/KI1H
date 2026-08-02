@@ -1,3 +1,4 @@
+#include "dsp.hpp"
 #include "plugin.hpp"
 #include "random"
 
@@ -15,12 +16,6 @@ struct LFO {
 
   float output = 0.f;
   float phase = 0.f;
-
-  float generateSine(float phase);
-  float generateTriangle(float phase);
-  float generateSaw(float phase);
-  float generateSquare(float phase);
-  float generateRamp(float phase);
 };
 
 // ============================================================================
@@ -107,13 +102,13 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   // Generate waveform based on type
   switch (waveType) {
   case 0:
-    output = generateSine(phase);
+    output = ki1h::sine(phase);
     break;
   case 1:
-    output = generateSaw(phase);
+    output = ki1h::saw(phase);
     break;
   case 2:
-    output = generateSquare(phase);
+    output = ki1h::square(phase);
     break;
   default:
     output = 0.f;
@@ -139,7 +134,7 @@ void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, flo
   if (sampleRate == -1)
     clockOutput = clockIn;
   else
-    clockOutput = generateSquare(clockPhase);
+    clockOutput = ki1h::square(clockPhase);
 
   // Everything below feeds SWAVE_OUT only, so it can be skipped when that jack
   // is empty — saving the waveform generator, a Schmitt trigger and an exp.
@@ -157,13 +152,13 @@ void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, flo
   // Generate S&H waveforms (different from regular LFO waveforms)
   switch (sWaveType) {
   case 0:
-    output = generateSaw(phase);
+    output = ki1h::saw(phase);
     break;
   case 1:
-    output = generateRamp(phase);
+    output = ki1h::ramp(phase);
     break;
   case 2:
-    output = generateTriangle(phase);
+    output = ki1h::triangle(phase);
     break;
   default:
     output = 0.f;
@@ -193,32 +188,6 @@ void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, flo
   // Apply lag filtering to the sampled value
   laggedOutput = lagAlpha * sampledValue + (1.0f - lagAlpha) * laggedOutput;
 };
-
-// ============================================================================
-// LFO CLASS - WAVEFORM GENERATORS
-// ============================================================================
-float LFO::generateSine(float ph) {
-  return std::sin(2.f * M_PI * ph);
-}
-
-float LFO::generateTriangle(float ph) {
-  if (ph < 0.5f)
-    return ph * 4.f - 1.f; // Rising: 0→0.5 becomes -1→+1
-  else
-    return 3.f - ph * 4.f; // Falling: 0.5→1 becomes +1→-1
-}
-
-float LFO::generateSaw(float ph) {
-  return ph * -2.f + 1.f; // Maps 0→1 phase to -1→+1
-}
-
-float LFO::generateRamp(float ph) {
-  return ph * 2.f - 1.f;
-}
-
-float LFO::generateSquare(float ph) {
-  return (ph > 0.5f) ? -1.f : 1.f;
-}
 
 KI1H_LFO::KI1H_LFO() {
   // ============================================================================
