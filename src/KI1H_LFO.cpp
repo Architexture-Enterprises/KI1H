@@ -28,7 +28,7 @@ struct LFO {
 // ============================================================================
 struct SampleAndHold : LFO {
 public:
-  void process(float pitch, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
+  void process(float oscPhase, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
                int waveType, float lagTime, float sampleTime, bool needOutput);
   float getOutput() const override {
     return laggedOutput;
@@ -123,7 +123,7 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 // ============================================================================
 // SAMPLE AND HOLD PROCESS METHOD
 // ============================================================================
-void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float sampleIn,
+void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, float sampleIn,
                             bool sampInConn, int sWaveType, float lagTime, float sampleTime,
                             bool needOutput) {
 
@@ -142,14 +142,14 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
     clockOutput = generateSquare(clockPhase);
 
   // Everything below feeds SWAVE_OUT only, so it can be skipped when that jack
-  // is empty — saving an exp2, a phase accumulator, a Schmitt trigger and an exp.
+  // is empty — saving the waveform generator, a Schmitt trigger and an exp.
   if (!needOutput)
     return;
 
-  float freq = dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
+  // The S&H oscillator runs at lfo2's pitch, so it takes lfo2's phase directly
+  // rather than accumulating a bit-identical copy of it (and paying a second
+  // exp2 per sample to do so). The clock phase above is genuinely independent.
+  phase = oscPhase;
 
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
@@ -321,7 +321,8 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   if (inputs[CLOCK_IN].isConnected())
     sRate = -1.f;
 
-  SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime,
+  // lfo2.process() above has already advanced lfo2.phase for this sample.
+  SNH.process(lfo2.phase, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime,
               outputs[SWAVE_OUT].isConnected());
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
