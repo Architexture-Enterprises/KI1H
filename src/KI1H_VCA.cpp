@@ -123,12 +123,6 @@ void KI1H_VCA::process(const ProcessArgs &args) {
     // Get pan parameter
     float pan = params[PAN1_PARAM + i].getValue();
 
-    // Get CV (unipolar: 0-10V range)
-    float cv = 0.f;
-    if (inputs[CV1_INPUT + i].isConnected()) {
-      cv = inputs[CV1_INPUT + i].getVoltage();
-    }
-
     // Channels 1 and 5 have a switch selecting what their CV does; channels
     // 2-4 are always volume. Pick the mode first, then apply it once.
     // 0 = volume mode, 1 = panning mode.
@@ -136,22 +130,24 @@ void KI1H_VCA::process(const ProcessArgs &args) {
                        : (i == 4) ? (int)params[PAN_CV2_PARAM].getValue()
                                   : 0;
 
+    // CV offsets the control it is assigned to rather than taking it over. The
+    // slider and knob keep setting where 0 V sits, so patching a CV no longer
+    // throws away the panel setting — it modulates around it.
     if (inputs[CV1_INPUT + i].isConnected()) {
+      const float cv = inputs[CV1_INPUT + i].getVoltage();
       if (cvMode == 1) {
-        // CV controls panning. Note this maps 0-5 V onto centre-to-hard-right
-        // and clamps everything above 5 V; the "5V = center" comment this
-        // replaced described a bipolar mapping the code never implemented.
-        // Preserved as-is — changing it would change the sound.
-        pan = std::max(-1.f, std::min(1.f, cv / 5.f));
+        // Panning: +/-5 V sweeps the full width from wherever the knob sits.
+        pan = clamp(pan + cv / ki1h::CV_SCALE_5V, -1.f, 1.f);
       } else {
-        // CV controls volume (0-10V -> 0-1 gain)
-        level *= std::max(0.f, std::min(1.f, cv / 10.f));
+        // Volume: +10 V adds full scale on top of the slider. This used to
+        // multiply, which meant any CV below full scale attenuated the slider
+        // and 0 V silenced the channel however high the slider was pushed.
+        level = clamp(level + cv / ki1h::CV_SCALE_10V, 0.f, 1.f);
       }
     }
 
     // Apply level as unipolar gain
-    float gain = level;
-    channels[i].process(input, gain);
+    channels[i].process(input, level);
 
     // Get channel output
     float output = channels[i].getOutput();
