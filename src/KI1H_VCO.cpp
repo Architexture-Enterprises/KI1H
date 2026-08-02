@@ -51,7 +51,7 @@ struct Oscillator {
     return sin;
   }
 
-  float phase = 0.f;
+  ki1h::Phasor phase;
   float output = 0.f;
   float blinkPhase = 0.f;
   float sin = 0.f;
@@ -62,7 +62,7 @@ struct Oscillator {
 
   /** phaseCrossing() for this oscillator's current step. */
   float crossing(float t) const {
-    return phaseCrossing(phase, deltaPhase, wrapped, t);
+    return phaseCrossing(phase.phase, deltaPhase, wrapped, t);
   }
 
   void updatePhases(float freq, float sampleTime);
@@ -83,7 +83,7 @@ struct RawOscillator : Oscillator {
     return sub;
   }
 
-  float subPhase = 0.f;
+  ki1h::Phasor subPhase;
   float sub = 0.f;
 
   // One generator per discontinuous output. 16 zero-crossings at 16x
@@ -183,12 +183,9 @@ float Oscillator::calculateFreq(float pitch) {
 
 void Oscillator::updatePhases(float freq, float sampleTime) {
   deltaPhase = freq * sampleTime;
-  phase += deltaPhase;
-  wrapped = (phase >= 1.f);
-  if (wrapped)
-    phase -= 1.f;
+  wrapped = phase.advance(freq, sampleTime);
 
-  blinkPhase = phase;
+  blinkPhase = phase.phase;
 }
 
 // ============================================================================
@@ -200,7 +197,7 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
 
   updatePhases(freq, sampleTime);
 
-  sin = ki1h::sine(phase);
+  sin = ki1h::sine(phase.phase);
 
   // ==========================================================================
   // SUB OSCILLATOR (50% square, one octave down)
@@ -211,20 +208,17 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
   if (needSub) {
     const float subFreq = freq / 2.f;
     const float subDelta = subFreq * sampleTime;
-    subPhase += subDelta;
-    const bool subWrapped = (subPhase >= 1.f);
-    if (subWrapped)
-      subPhase -= 1.f;
+    const bool subWrapped = subPhase.advance(subFreq, sampleTime);
 
     // Steps from -1 to +1 at phase 0 and back at phase 0.5.
-    float sp = phaseCrossing(subPhase, subDelta, subWrapped, 0.f);
+    float sp = phaseCrossing(subPhase.phase, subDelta, subWrapped, 0.f);
     if (sp <= 0.f)
       subBlep.insertDiscontinuity(sp, 2.f);
-    sp = phaseCrossing(subPhase, subDelta, subWrapped, 0.5f);
+    sp = phaseCrossing(subPhase.phase, subDelta, subWrapped, 0.5f);
     if (sp <= 0.f)
       subBlep.insertDiscontinuity(sp, -2.f);
 
-    sub = ki1h::square(subPhase) + subBlep.process();
+    sub = ki1h::square(subPhase.phase) + subBlep.process();
   } else {
     sub = 0.f;
   }
@@ -241,14 +235,14 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
     // Triangle is continuous. Its slope discontinuity would need a MinBLAMP,
     // which the SDK does not ship; it also aliases far less (-12 dB/oct
     // against a saw's -6).
-    output = ki1h::triangle(phase);
+    output = ki1h::triangle(phase.phase);
     break;
   case 1: {
     // Falling saw: steps from -1 up to +1 at the wrap.
     const float p = crossing(0.f);
     if (p <= 0.f)
       mainBlep.insertDiscontinuity(p, 2.f);
-    output = ki1h::saw(phase);
+    output = ki1h::saw(phase.phase);
     break;
   }
   case 2: {
@@ -259,7 +253,7 @@ void RawOscillator::process(float pitch, float pulseWidth, int waveType, float s
     const float pFall = crossing(pw);
     if (pFall <= 0.f)
       mainBlep.insertDiscontinuity(pFall, -2.f);
-    output = ki1h::square(phase, pw);
+    output = ki1h::square(phase.phase, pw);
     break;
   }
   default:
@@ -290,9 +284,9 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
       // Locate the crossing of the trigger's 1.0 threshold within this sample
       // by interpolating the sync input, then correct the step the reset puts
       // in the output. Without this the reset is a raw discontinuity.
-      const float before = waveAt(phase, shape, waveType);
-      phase = 0.f;
-      const float after = waveAt(phase, shape, waveType);
+      const float before = waveAt(phase.phase, shape, waveType);
+      phase.reset();
+      const float after = waveAt(phase.phase, shape, waveType);
 
       const float rise = syncVal - prevSyncVal;
       const float frac = (rise > 0.f) ? (syncVal - 1.f) / rise : 0.f;
@@ -310,18 +304,19 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
     if (syncVal > 0.1f) { // Only pull when sync signal is above noise floor
       // Create exponential pull force - stronger as phase increases
       float pullStrength = syncVal * 0.2f;     // Scale sync signal
-      syncPull = pullStrength * phase * phase; // Quadratic pull (gets stronger near end of cycle)
+      // Quadratic pull (gets stronger near end of cycle)
+      syncPull = pullStrength * phase.phase * phase.phase;
 
       // Pull phase backward toward 0, creating the chaotic analog behavior
-      phase -= syncPull * sampleTime * freq;
+      phase.phase -= syncPull * sampleTime * freq;
 
       // Prevent phase from going negative
-      if (phase < 0.f)
-        phase = 0.f;
+      if (phase.phase < 0.f)
+        phase.reset();
     }
   }
 
-  sin = ki1h::sine(phase);
+  sin = ki1h::sine(phase.phase);
 
   // generateShapedWave is the most expensive routine in the plugin. Skip it
   // when WAVE2_OUTPUT is empty. The phase accumulation and sync above still
@@ -346,7 +341,7 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
       if (p <= 0.f)
         blep.insertDiscontinuity(p, -2.f);
     }
-    output = generateShapedWave(phase, shape);
+    output = generateShapedWave(phase.phase, shape);
     break;
   case 1: {
     if (!synced) {
@@ -358,7 +353,7 @@ void ShaperOscillator::process(float pitch, float linFM, float AM, float syncTyp
       if (pFall <= 0.f)
         blep.insertDiscontinuity(pFall, -2.f);
     }
-    output = ki1h::square(phase, shape);
+    output = ki1h::square(phase.phase, shape);
     break;
   }
   default:

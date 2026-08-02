@@ -11,11 +11,11 @@ struct LFO {
     return output;
   };
   float getBlink() const {
-    return phase;
+    return phase.phase;
   }
 
   float output = 0.f;
-  float phase = 0.f;
+  ki1h::Phasor phase;
 };
 
 // ============================================================================
@@ -32,10 +32,10 @@ public:
     return clockOutput;
   };
   float getBlink() const {
-    return clockPhase;
+    return clockPhase.phase;
   };
 
-  float clockPhase = 0.f;
+  ki1h::Phasor clockPhase;
   float sampledValue = 0.f;
   float laggedOutput = 0.f;
   float clockOutput = 0.f;
@@ -92,9 +92,7 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   // PHASE ACCUMULATION
   // ============================================================================
   // Normal phase accumulation
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
+  phase.advance(freq, sampleTime);
 
   // ============================================================================
   // WAVEFORM GENERATION
@@ -102,13 +100,13 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   // Generate waveform based on type
   switch (waveType) {
   case 0:
-    output = ki1h::sine(phase);
+    output = ki1h::sine(phase.phase);
     break;
   case 1:
-    output = ki1h::saw(phase);
+    output = ki1h::saw(phase.phase);
     break;
   case 2:
-    output = ki1h::square(phase);
+    output = ki1h::square(phase.phase);
     break;
   default:
     output = 0.f;
@@ -127,14 +125,12 @@ void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, flo
   // PHASE ACCUMULATION
   // ============================================================================
   // The clock half always runs: it drives CLOCK_OUT and CLOCK_LIGHT.
-  clockPhase += clockFreq * sampleTime;
-  if (clockPhase >= 1.f)
-    clockPhase -= 1.f;
+  clockPhase.advance(clockFreq, sampleTime);
 
   if (sampleRate == -1)
     clockOutput = clockIn;
   else
-    clockOutput = ki1h::square(clockPhase);
+    clockOutput = ki1h::square(clockPhase.phase);
 
   // Everything below feeds SWAVE_OUT only, so it can be skipped when that jack
   // is empty — saving the waveform generator, a Schmitt trigger and an exp.
@@ -144,7 +140,7 @@ void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, flo
   // The S&H oscillator runs at lfo2's pitch, so it takes lfo2's phase directly
   // rather than accumulating a bit-identical copy of it (and paying a second
   // exp2 per sample to do so). The clock phase above is genuinely independent.
-  phase = oscPhase;
+  phase.phase = oscPhase;
 
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
@@ -152,13 +148,13 @@ void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, flo
   // Generate S&H waveforms (different from regular LFO waveforms)
   switch (sWaveType) {
   case 0:
-    output = ki1h::saw(phase);
+    output = ki1h::saw(phase.phase);
     break;
   case 1:
-    output = ki1h::ramp(phase);
+    output = ki1h::ramp(phase.phase);
     break;
   case 2:
-    output = ki1h::triangle(phase);
+    output = ki1h::triangle(phase.phase);
     break;
   default:
     output = 0.f;
@@ -291,7 +287,7 @@ void KI1H_LFO::process(const ProcessArgs &args) {
     sRate = -1.f;
 
   // lfo2.process() above has already advanced lfo2.phase for this sample.
-  SNH.process(lfo2.phase, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime,
+  SNH.process(lfo2.phase.phase, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime,
               outputs[SWAVE_OUT].isConnected());
   outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
   outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
