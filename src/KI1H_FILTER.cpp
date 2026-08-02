@@ -3,6 +3,11 @@
 // INCLUDES & GLOBAL VARIABLES
 // ============================================================================
 #include "plugin.hpp"
+#include <cmath>
+
+// Float pi, so the coefficient expressions below stay in single precision
+// instead of promoting through the double overloads of exp/cos/sin.
+static constexpr float PI_F = 3.14159265358979323846f;
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -38,8 +43,8 @@ struct BPFilter : Filter {
   float minFreq = 30.f;
   float maxFreq = 15000.f;
   void setCoefficients(float w, float q) {
-    float cos_w = cos(w);
-    float sin_w = sin(w);
+    float cos_w = std::cos(w);
+    float sin_w = std::sin(w);
     float alpha = sin_w / (2.0f * q);
 
     float a0 = 1.0f + alpha;
@@ -147,7 +152,7 @@ struct KI1H_FILTERWidget : ModuleWidget {
 // ============================================================================
 void LPFilter::process(float input, float cutoff, float resonance, float sampletime) {
   // Pre-calculate coefficient once per sample
-  cutoff_coeff = 1.0f - exp(-2.0f * M_PI * cutoff * sampletime);
+  cutoff_coeff = 1.0f - std::exp(-2.0f * PI_F * cutoff * sampletime);
 
   // Single feedback calculation
   float feedback = stages[11] * resonance;
@@ -166,7 +171,7 @@ void LPFilter::process(float input, float cutoff, float resonance, float samplet
 void HPFilter::process(float input, float cutoff, float sampletime) {
 
   // High-pass coefficient
-  float alpha = exp(-2.0f * M_PI * cutoff * sampletime);
+  float alpha = std::exp(-2.0f * PI_F * cutoff * sampletime);
 
   // RC high-pass
   float hp_out = alpha * (prev_output + input - prev_input);
@@ -186,8 +191,8 @@ void BPFilter::process(float input, float frequency, float width, float resonanc
 
   hpFreq = std::max(hpFreq, 30.f);
   lpFreq = std::min(15000.f, lpFreq);
-  float hp_alpha = exp(-2.0f * M_PI * hpFreq * sampletime);
-  float w = 2.0f * M_PI * lpFreq * sampletime;
+  float hp_alpha = std::exp(-2.0f * PI_F * hpFreq * sampletime);
+  float w = 2.0f * PI_F * lpFreq * sampletime;
   setCoefficients(w, q);
   float hp_out = hp_alpha * (hp_prev_out + input - hp_prev_in);
   hp_prev_in = input;
