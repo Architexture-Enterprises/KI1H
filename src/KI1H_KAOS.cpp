@@ -1,8 +1,13 @@
 #include "plugin.hpp"
-#include <random>
 
 struct KAOS {
 public:
+  KAOS() {
+    // Seeded from the global generator at construction time, which happens on
+    // the UI thread — never from process().
+    rng.seed(rack::random::u64(), rack::random::u64());
+  }
+
   void process(float color, float bkIn, float pkIn);
   float getNoise() const {
     return noise;
@@ -25,15 +30,25 @@ public:
   // Pink noise state variables (Paul Kellet's algorithm)
   float pinkState[5] = {0.f, 0.f, 0.f, 0.f, 0.f};
 
+  // Per-instance noise stream. rack::random::local() backs the global
+  // random::normal(), and the SDK documents it as no longer thread-local, so
+  // sharing it would still race across engine worker threads.
+  rack::random::Xoroshiro128Plus rng;
+
+  /** Uniform float in [0, 1) drawn from this instance's stream. */
+  float uniform() {
+    return (uint32_t)(rng() >> 32) * 2.32830629e-10f;
+  }
+
   // Noise generation methods
-  float generateNoise(float seed);
+  float generateNoise();
   float generateBrownNoise(float whiteNoise);
   float generatePinkNoise(float whiteNoise);
 };
 
 void KAOS::process(float color, float bkIn, float pkIn) {
   // Generate proper white, brown, and pink noise
-  float wNoise = generateNoise(noise);
+  float wNoise = generateNoise();
   float brownNoise = generateBrownNoise(wNoise);
   float pinkNoise = generatePinkNoise(wNoise);
 
@@ -70,12 +85,11 @@ void KAOS::process(float color, float bkIn, float pkIn) {
 // SAMPLE AND HOLD CLASS - NOISE GENERATORS
 // ============================================================================
 
-float KAOS::generateNoise(float seed) {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  static std::normal_distribution<float> dis(0.0f, 1.0f);
-
-  return dis(gen) * 1.5f;
+float KAOS::generateNoise() {
+  // Box-Muller, matching the distribution rack::random::normal() produces.
+  float radius = std::sqrt(-2.f * std::log(1.f - uniform()));
+  float theta = 2.f * M_PI * uniform();
+  return radius * std::sin(theta) * 1.5f;
 }
 
 float KAOS::generateBrownNoise(float whiteNoise) {
@@ -107,15 +121,15 @@ float KAOS::generatePinkNoise(float whiteNoise) {
 struct KI1H_KAOS : Module {
   enum ParamIds { NOISE_PARAM, NUM_PARAMS };
 
-  enum InputIds { PKAOS_IN, BKAOS_IN, NUM_INPUTS };
+  enum InputIds { PKAOS_INPUT, BKAOS_INPUT, NUM_INPUTS };
 
-  enum OutputIds { NOISE_OUT, PKAOS_OUT, BKAOS_OUT, NUM_OUTPUTS };
+  enum OutputIds { NOISE_OUTPUT, PKAOS_OUTPUT, BKAOS_OUTPUT, NUM_OUTPUTS };
 
   KI1H_KAOS();
   void process(const ProcessArgs &args) override;
 
 private:
-  KAOS KAOS;
+  KAOS kaos;
 };
 
 struct KI1H_KAOSWidget : ModuleWidget {
@@ -127,23 +141,23 @@ KI1H_KAOS::KI1H_KAOS() {
   // ============================================================================
   config(KI1H_KAOS::NUM_PARAMS, KI1H_KAOS::NUM_INPUTS, KI1H_KAOS::NUM_OUTPUTS);
   configParam(NOISE_PARAM, -1.f, 1.f, 0.f, "Color");
-  configOutput(NOISE_OUT, "NOISE OUT");
-  configInput(PKAOS_IN, "Chaos 1 Trig");
-  configInput(BKAOS_IN, "Chaos 2 Trig");
-  configOutput(PKAOS_OUT, "Chaos 1 Out");
-  configOutput(BKAOS_OUT, "Chaos 2 Out");
+  configOutput(NOISE_OUTPUT, "NOISE OUT");
+  configInput(PKAOS_INPUT, "Chaos 1 Trig");
+  configInput(BKAOS_INPUT, "Chaos 2 Trig");
+  configOutput(PKAOS_OUTPUT, "Chaos 1 Out");
+  configOutput(BKAOS_OUTPUT, "Chaos 2 Out");
 };
 
 void KI1H_KAOS::process(const ProcessArgs &args) {
   float color = params[NOISE_PARAM].getValue();
-  float bkIn = inputs[BKAOS_IN].isConnected() ? inputs[BKAOS_IN].getVoltage() : -99.f;
-  float pkIn = inputs[PKAOS_IN].isConnected() ? inputs[PKAOS_IN].getVoltage() : -99.f;
-  KAOS.process(color, bkIn, pkIn);
-  outputs[NOISE_OUT].setVoltage(KAOS.getNoise());
-  if (outputs[PKAOS_OUT].isConnected())
-    outputs[PKAOS_OUT].setVoltage(KAOS.getpKaos());
-  if (outputs[BKAOS_OUT].isConnected())
-    outputs[BKAOS_OUT].setVoltage(KAOS.getbKaos());
+  float bkIn = inputs[BKAOS_INPUT].isConnected() ? inputs[BKAOS_INPUT].getVoltage() : -99.f;
+  float pkIn = inputs[PKAOS_INPUT].isConnected() ? inputs[PKAOS_INPUT].getVoltage() : -99.f;
+  kaos.process(color, bkIn, pkIn);
+  outputs[NOISE_OUTPUT].setVoltage(kaos.getNoise());
+  if (outputs[PKAOS_OUTPUT].isConnected())
+    outputs[PKAOS_OUTPUT].setVoltage(kaos.getpKaos());
+  if (outputs[BKAOS_OUTPUT].isConnected())
+    outputs[BKAOS_OUTPUT].setVoltage(kaos.getbKaos());
 };
 
 KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
@@ -158,15 +172,15 @@ KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_KAOS::NOISE_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
-                                             KI1H_KAOS::NOISE_OUT));
+                                             KI1H_KAOS::NOISE_OUTPUT));
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
-                                              KI1H_KAOS::PKAOS_IN));
+                                              KI1H_KAOS::PKAOS_INPUT));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
-                                              KI1H_KAOS::PKAOS_OUT));
+                                              KI1H_KAOS::PKAOS_OUTPUT));
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
-                                              KI1H_KAOS::BKAOS_IN));
+                                              KI1H_KAOS::BKAOS_INPUT));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
-                                              KI1H_KAOS::BKAOS_OUT));
+                                              KI1H_KAOS::BKAOS_OUTPUT));
 };
 
 Model *modelKI1H_KAOS = createModel<KI1H_KAOS, KI1H_KAOSWidget>("KI1H-KAOS");

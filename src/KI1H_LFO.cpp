@@ -1,3 +1,4 @@
+#include "dsp.hpp"
 #include "plugin.hpp"
 
 // Waveform switch positions. Order must match the configSwitch label lists in
@@ -16,17 +17,11 @@ struct LFO {
     return output;
   };
   float getBlink() const {
-    return phase;
+    return phase.phase;
   }
 
   float output = 0.f;
-  float phase = 0.f;
-
-  float generateSine(float phase);
-  float generateTriangle(float phase);
-  float generateSaw(float phase);
-  float generateSquare(float phase);
-  float generateRamp(float phase);
+  ki1h::Phasor phase;
 };
 
 // ============================================================================
@@ -34,8 +29,8 @@ struct LFO {
 // ============================================================================
 struct SampleAndHold : LFO {
 public:
-  void process(float pitch, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
-               int waveType, float lagTime, float sampleTime);
+  void process(float oscPhase, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
+               int waveType, float lagTime, float sampleTime, bool needOutput);
   float getOutput() const override {
     return laggedOutput;
   };
@@ -43,14 +38,21 @@ public:
     return clockOutput;
   };
   float getBlink() const {
-    return clockPhase;
+    return clockPhase.phase;
   };
 
-  float clockPhase = 0.f;
+  ki1h::Phasor clockPhase;
   float sampledValue = 0.f;
   float laggedOutput = 0.f;
   float clockOutput = 0.f;
   dsp::SchmittTrigger sampleTrigger;
+
+  // Cached lag coefficient. lagTime is a knob and sampleTime only moves on a
+  // sample-rate change, so the exp() behind it almost never needs redoing.
+  // The sentinels are negative so the first process() call always misses.
+  float lagAlpha = 0.f;
+  float cachedLagTime = -1.f;
+  float cachedSampleTime = -1.f;
 };
 
 // ============================================================================
@@ -59,18 +61,18 @@ public:
 struct KI1H_LFO : Module {
   enum ParamIds {
     RATE1_PARAM,
-    RATE1_CV,
+    RATE1CV_PARAM,
     WAVE1_PARAM,
     RATE2_PARAM,
-    RATE2_CV,
+    RATE2CV_PARAM,
     WAVE2_PARAM,
     SRATE_PARAM,
     SWAVE_PARAM,
     SLAG_PARAM,
     NUM_PARAMS
   };
-  enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_IN, CLOCK_IN, NUM_INPUTS };
-  enum OutputIds { WAVE1_OUT, WAVE2_OUT, CLOCK_OUT, SWAVE_OUT, NUM_OUTPUTS };
+  enum InputIds { CV1_INPUT, CV2_INPUT, SAMP_INPUT, CLOCK_INPUT, NUM_INPUTS };
+  enum OutputIds { WAVE1_OUTPUT, WAVE2_OUTPUT, CLOCK_OUTPUT, SWAVE_OUTPUT, NUM_OUTPUTS };
   enum LightIds { BLINK1_LIGHT, BLINK2_LIGHT, CLOCK_LIGHT, NUM_LIGHTS };
 
   KI1H_LFO();
@@ -79,7 +81,7 @@ struct KI1H_LFO : Module {
 private:
   LFO lfo1, lfo2;
   SampleAndHold SNH;
-  float CV_SCALE = 5.f;
+  static constexpr float CV_SCALE = 5.f;
 };
 
 // ============================================================================
@@ -90,15 +92,13 @@ struct KI1H_LFOWidget : ModuleWidget {
 };
 void LFO::process(float pitch, int waveType, float sampleTime) {
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+  float freq = dsp::FREQ_C4 * dsp::exp2_taylor5(pitch);
 
   // ============================================================================
   // PHASE ACCUMULATION
   // ============================================================================
   // Normal phase accumulation
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
+  phase.advance(freq, sampleTime);
 
   // ============================================================================
   // WAVEFORM GENERATION
@@ -106,13 +106,13 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
   // Generate waveform based on type
   switch (waveType) {
   case LFO_SINE:
-    output = generateSine(phase);
+    output = ki1h::sine(phase.phase);
     break;
   case LFO_SAW:
-    output = generateSaw(phase);
+    output = ki1h::saw(phase.phase);
     break;
   case LFO_SQUARE:
-    output = generateSquare(phase);
+    output = ki1h::square(phase.phase);
     break;
   default:
     output = 0.f;
@@ -122,22 +122,31 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 // ============================================================================
 // SAMPLE AND HOLD PROCESS METHOD
 // ============================================================================
-void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float sampleIn,
-                            bool sampInConn, int sWaveType, float lagTime, float sampleTime) {
+void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, float sampleIn,
+                            bool sampInConn, int sWaveType, float lagTime, float sampleTime,
+                            bool needOutput) {
 
-  float freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
-
-  float clockFreq = dsp::FREQ_C4 * std::pow(2.f, sampleRate);
+  float clockFreq = dsp::FREQ_C4 * dsp::exp2_taylor5(sampleRate);
   // ============================================================================
   // PHASE ACCUMULATION
   // ============================================================================
-  phase += freq * sampleTime;
-  if (phase >= 1.f)
-    phase -= 1.f;
+  // The clock half always runs: it drives CLOCK_OUTPUT and CLOCK_LIGHT.
+  clockPhase.advance(clockFreq, sampleTime);
 
-  clockPhase += clockFreq * sampleTime;
-  if (clockPhase >= 1.f)
-    clockPhase -= 1.f;
+  if (sampleRate == -1)
+    clockOutput = clockIn;
+  else
+    clockOutput = ki1h::square(clockPhase.phase);
+
+  // Everything below feeds SWAVE_OUTPUT only, so it can be skipped when that jack
+  // is empty — saving the waveform generator, a Schmitt trigger and an exp.
+  if (!needOutput)
+    return;
+
+  // The S&H oscillator runs at lfo2's pitch, so it takes lfo2's phase directly
+  // rather than accumulating a bit-identical copy of it (and paying a second
+  // exp2 per sample to do so). The clock phase above is genuinely independent.
+  phase.phase = oscPhase;
 
   // ============================================================================
   // S&H SPECIFIC WAVEFORM GENERATION
@@ -145,22 +154,18 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   // Generate S&H waveforms (different from regular LFO waveforms)
   switch (sWaveType) {
   case SH_SAW:
-    output = generateSaw(phase);
+    output = ki1h::saw(phase.phase);
     break;
   case SH_RAMP:
-    output = generateRamp(phase);
+    output = ki1h::ramp(phase.phase);
     break;
   case SH_TRIANGLE:
-    output = generateTriangle(phase);
+    output = ki1h::triangle(phase.phase);
     break;
   default:
     output = 0.f;
   }
 
-  if (sampleRate == -1)
-    clockOutput = clockIn;
-  else
-    clockOutput = generateSquare(clockPhase);
   // ============================================================================
   // SAMPLE ON TRIGGER RISING EDGE
   // ============================================================================
@@ -173,39 +178,18 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   // ============================================================================
   // APPLY EXPONENTIAL LAG TO SAMPLED VALUE
   // ============================================================================
-  // Calculate time constant for 99% settling in lagTime
-  float timeConstant = lagTime / 4.605f;
-  float alpha = 1.0f - exp(-sampleTime / timeConstant);
+  // Recompute only when the knob or the sample rate actually moves.
+  if (lagTime != cachedLagTime || sampleTime != cachedSampleTime) {
+    cachedLagTime = lagTime;
+    cachedSampleTime = sampleTime;
+    // Time constant for 99% settling in lagTime
+    float timeConstant = lagTime / 4.605f;
+    lagAlpha = 1.0f - std::exp(-sampleTime / timeConstant);
+  }
 
   // Apply lag filtering to the sampled value
-  laggedOutput = alpha * sampledValue + (1.0f - alpha) * laggedOutput;
+  laggedOutput = lagAlpha * sampledValue + (1.0f - lagAlpha) * laggedOutput;
 };
-
-// ============================================================================
-// LFO CLASS - WAVEFORM GENERATORS
-// ============================================================================
-float LFO::generateSine(float ph) {
-  return std::sin(2.f * M_PI * ph);
-}
-
-float LFO::generateTriangle(float ph) {
-  if (ph < 0.5f)
-    return ph * 4.f - 1.f; // Rising: 0→0.5 becomes -1→+1
-  else
-    return 3.f - ph * 4.f; // Falling: 0.5→1 becomes +1→-1
-}
-
-float LFO::generateSaw(float ph) {
-  return ph * -2.f + 1.f; // Maps 0→1 phase to -1→+1
-}
-
-float LFO::generateRamp(float ph) {
-  return ph * 2.f - 1.f;
-}
-
-float LFO::generateSquare(float ph) {
-  return (ph > 0.5f) ? -1.f : 1.f;
-}
 
 KI1H_LFO::KI1H_LFO() {
   // ============================================================================
@@ -217,21 +201,21 @@ KI1H_LFO::KI1H_LFO() {
   // LFO 1 - PARAMETER CONFIGURATION
   // ============================================================================
   configParam(RATE1_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
-  configParam(RATE1_CV, 0.f, 1.f, 1.f, "Rate CV Scale", "%", 0.f, 100, 0.f);
+  configParam(RATE1CV_PARAM, 0.f, 1.f, 1.f, "Rate CV Scale", "%", 0.f, 100, 0.f);
   configInput(CV1_INPUT, "Rate");
   auto waveParam = configSwitch(WAVE1_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sine", "Sawtooth", "Pulse"});
   waveParam->snapEnabled = true;
-  configOutput(WAVE1_OUT, "LFO1 Out");
+  configOutput(WAVE1_OUTPUT, "LFO1 Out");
 
   // ============================================================================
   // LFO 2 - PARAMETER CONFIGURATION
   // ============================================================================
   configParam(RATE2_PARAM, -10.f, -3.4f, -5.3f, "Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
-  configParam(RATE2_CV, 0.f, 1.f, 1.f, "Rate CV Scale", "%", 0.f, 100, 0.f);
+  configParam(RATE2CV_PARAM, 0.f, 1.f, 1.f, "Rate CV Scale", "%", 0.f, 100, 0.f);
   configInput(CV2_INPUT, "Rate");
   auto wave2Param = configSwitch(WAVE2_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sine", "Sawtooth", "Pulse"});
   wave2Param->snapEnabled = true;
-  configOutput(WAVE2_OUT, "LFO2 Out");
+  configOutput(WAVE2_OUTPUT, "LFO2 Out");
 
   // ============================================================================
   // S&H - PARAMETER CONFIGURATION
@@ -241,10 +225,10 @@ KI1H_LFO::KI1H_LFO() {
       configSwitch(SWAVE_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sawtooth", "Ramp", "Triangle"});
   sWaveParam->snapEnabled = true;
   configParam(SLAG_PARAM, 0.0f, 0.2f, 0.f, "Lag", "ms", 0.f, 1000.f, 0.f);
-  configInput(SAMP_IN, "Ext. In");
-  configInput(CLOCK_IN, "Clock in");
-  configOutput(SWAVE_OUT, "S&H Out");
-  configOutput(CLOCK_OUT, "Clock Out");
+  configInput(SAMP_INPUT, "Ext. In");
+  configInput(CLOCK_INPUT, "Clock in");
+  configOutput(SWAVE_OUTPUT, "S&H Out");
+  configOutput(CLOCK_OUTPUT, "Clock Out");
 };
 
 void KI1H_LFO::process(const ProcessArgs &args) {
@@ -252,9 +236,9 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // LFO 1 - PITCH
   // ============================================================================
   float pitch1 = params[RATE1_PARAM].getValue();
-  // Scale CV input by RATE1_CV param (0.01 to 1.0 range)
+  // Scale CV input by RATE1CV_PARAM param (0.01 to 1.0 range)
   if (inputs[CV1_INPUT].isConnected()) {
-    float cvScale = 0.01f + params[RATE1_CV].getValue() * 0.99f; // Map 0-1 param to 0.01-1.0 scale
+    float cvScale = 0.01f + params[RATE1CV_PARAM].getValue() * 0.99f; // Map 0-1 param to 0.01-1.0 scale
     pitch1 += inputs[CV1_INPUT].getVoltage() * cvScale;
   }
   int waveType1 = (int)params[WAVE1_PARAM].getValue();
@@ -263,15 +247,15 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // LFO 1 - PROCESS & OUTPUT
   // ============================================================================
   lfo1.process(pitch1, waveType1, args.sampleTime);
-  outputs[WAVE1_OUT].setVoltage(CV_SCALE * lfo1.getOutput());
+  outputs[WAVE1_OUTPUT].setVoltage(CV_SCALE * lfo1.getOutput());
 
   // ============================================================================
   // LFO 2 - PITCH
   // ============================================================================
   float pitch2 = params[RATE2_PARAM].getValue();
-  // Scale CV input by RATE2_CV param (0.01 to 1.0 range)
+  // Scale CV input by RATE2CV_PARAM param (0.01 to 1.0 range)
   if (inputs[CV2_INPUT].isConnected()) {
-    float cvScale = 0.01f + params[RATE2_CV].getValue() * 0.99f; // Map 0-1 param to 0.01-1.0 scale
+    float cvScale = 0.01f + params[RATE2CV_PARAM].getValue() * 0.99f; // Map 0-1 param to 0.01-1.0 scale
     pitch2 += inputs[CV2_INPUT].getVoltage() * cvScale;
   }
   int waveType2 = (int)params[WAVE2_PARAM].getValue();
@@ -280,7 +264,7 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // LFO 2 - PROCESS & OUTPUT
   // ============================================================================
   lfo2.process(pitch2, waveType2, args.sampleTime);
-  outputs[WAVE2_OUT].setVoltage(CV_SCALE * lfo2.getOutput());
+  outputs[WAVE2_OUTPUT].setVoltage(CV_SCALE * lfo2.getOutput());
 
   // ============================================================================
   // S&H - PARAMETERS & PROCESSING
@@ -301,16 +285,18 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   // 3. Applies exponential lag with tau = lagTime / 4.605 for 99% settling
   // 4. Models analog RC circuit with JFET buffer behavior
   float sampleIn = 0.f;
-  bool ext = inputs[SAMP_IN].isConnected();
+  bool ext = inputs[SAMP_INPUT].isConnected();
   if (ext)
-    sampleIn = inputs[SAMP_IN].getVoltage() * 0.2f;
-  float clockIn = inputs[CLOCK_IN].getVoltage();
-  if (inputs[CLOCK_IN].isConnected())
+    sampleIn = inputs[SAMP_INPUT].getVoltage() * 0.2f;
+  float clockIn = inputs[CLOCK_INPUT].getVoltage();
+  if (inputs[CLOCK_INPUT].isConnected())
     sRate = -1.f;
 
-  SNH.process(pitch2, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime);
-  outputs[SWAVE_OUT].setVoltage(CV_SCALE * SNH.getOutput());
-  outputs[CLOCK_OUT].setVoltage(CV_SCALE * SNH.getClock());
+  // lfo2.process() above has already advanced lfo2.phase for this sample.
+  SNH.process(lfo2.phase.phase, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime,
+              outputs[SWAVE_OUTPUT].isConnected());
+  outputs[SWAVE_OUTPUT].setVoltage(CV_SCALE * SNH.getOutput());
+  outputs[CLOCK_OUTPUT].setVoltage(CV_SCALE * SNH.getClock());
 
   lights[BLINK1_LIGHT].setBrightness(lfo1.getBlink() < 0.5f ? 1.f : 0.f);
   lights[BLINK2_LIGHT].setBrightness(lfo2.getBlink() < 0.5f ? 1.f : 0.f);
@@ -324,11 +310,7 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // PANEL SCREWS
   // ============================================================================
-  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
-  addChild(createWidget<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
-  addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-  addChild(createWidget<ScrewBlack>(
-      Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+  addPanelScrews(this);
   // ============================================================================
   // BLINKEN LIGHTS
   // ============================================================================
@@ -343,7 +325,7 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // LFO 1 - CONTROL KNOBS
   // ============================================================================
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
-                                               KI1H_LFO::RATE1_CV));
+                                               KI1H_LFO::RATE1CV_PARAM));
   addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[3] - HALF_R)), module,
                                                   KI1H_LFO::RATE1_PARAM));
   addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
@@ -351,13 +333,13 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
                                              KI1H_LFO::WAVE1_PARAM));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
-                                              KI1H_LFO::WAVE1_OUT));
+                                              KI1H_LFO::WAVE1_OUTPUT));
 
   // ============================================================================
   // LFO 2 - CONTROL KNOBS
   // ============================================================================
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
-                                               KI1H_LFO::RATE2_CV));
+                                               KI1H_LFO::RATE2CV_PARAM));
   addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[5] - HALF_R)), module,
                                                   KI1H_LFO::RATE2_PARAM));
   addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
@@ -365,7 +347,7 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
                                              KI1H_LFO::WAVE2_PARAM));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
-                                              KI1H_LFO::WAVE2_OUT));
+                                              KI1H_LFO::WAVE2_OUTPUT));
 
   // ============================================================================
   // S&H - CONTROL KNOBS
@@ -373,17 +355,17 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
                                                KI1H_LFO::SRATE_PARAM));
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
-                                              KI1H_LFO::CLOCK_IN));
+                                              KI1H_LFO::CLOCK_INPUT));
   addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_LFO::SLAG_PARAM));
   addInput(
-      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[1])), module, KI1H_LFO::SAMP_IN));
+      createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[1])), module, KI1H_LFO::SAMP_INPUT));
   addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[1] - HALF_R)),
                                              module, KI1H_LFO::SWAVE_PARAM));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
-                                              KI1H_LFO::SWAVE_OUT));
+                                              KI1H_LFO::SWAVE_OUTPUT));
   addOutput(createOutputCentered<BananutRed>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
-                                             KI1H_LFO::CLOCK_OUT));
+                                             KI1H_LFO::CLOCK_OUTPUT));
 }
 
 Model *modelKI1H_LFO = createModel<KI1H_LFO, KI1H_LFOWidget>("KI1H-LFO");
