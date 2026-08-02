@@ -26,7 +26,7 @@ struct Channel {
 // MIX CLASS DEFINITION
 // ============================================================================
 struct Mix {
-  void process(std::array<float, 5> all);
+  void process(const std::array<float, 5> &all);
   float getAllOut() const {
     return allOut;
   };
@@ -56,7 +56,7 @@ struct KI1H_MIX : Module {
 private:
   Channel channels[5];
   Mix mix;
-  float CV_SCALE = 5.f;
+  static constexpr float CV_SCALE = 5.f;
 };
 
 // ============================================================================
@@ -78,10 +78,10 @@ void Channel::process(float input, float cvIn) {
 // ============================================================================
 // MIX PROCESS METHOD
 // ============================================================================
-void Mix::process(std::array<float, 5> all) {
+void Mix::process(const std::array<float, 5> &all) {
   std::array<float, 2> evens;
   std::array<float, 3> odds;
-  for (unsigned long i = 0; i < sizeof(all); i++) {
+  for (std::size_t i = 0; i < all.size(); i++) {
     if (i % 2 == 0)
       odds[i / 2] = all[i];
     else
@@ -135,7 +135,7 @@ void KI1H_MIX::process(const ProcessArgs &args) {
     // Set output
     float output = channels[i].getOutput();
     outputs[OUT1 + i].setVoltage(output);
-    if (outputs[CV1 + i].isConnected())
+    if (outputs[OUT1 + i].isConnected())
       all[i] = 0.f;
     else
       all[i] = output;

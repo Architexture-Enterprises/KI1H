@@ -32,7 +32,7 @@ struct Channel {
 // VCA CLASS DEFINITION
 // ============================================================================
 struct VCA {
-  void process(std::array<float, 5> channels, std::array<float, 5> pans);
+  void process(const std::array<float, 5> &channels, const std::array<float, 5> &pans);
   float getLeftOut() const {
     return leftOut;
   };
@@ -94,7 +94,7 @@ void Channel::process(float input, float cvIn) {
 // ============================================================================
 // VCA PROCESS METHOD
 // ============================================================================
-void VCA::process(std::array<float, 5> channels, std::array<float, 5> pans) {
+void VCA::process(const std::array<float, 5> &channels, const std::array<float, 5> &pans) {
   float leftSum = 0.f;
   float rightSum = 0.f;
 
