@@ -12,23 +12,6 @@
 #include <string>
 
 // ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-namespace {
-// ============================================================================
-// CHANNEL CLASS DEFINITION
-// ============================================================================
-struct Channel {
-  void process(float input, float cvIn);
-  float getOutput() const {
-    return output;
-  };
-
-  float output = 0.f;
-};
-} // namespace
-
-// ============================================================================
 // VCA CLASS DEFINITION
 // ============================================================================
 struct VCA {
@@ -70,7 +53,7 @@ struct KI1H_VCA : Module {
   void process(const ProcessArgs &args) override;
 
 private:
-  Channel channels[5];
+  ki1h::Channel channels[5];
   VCA mix;
 };
 
@@ -79,16 +62,6 @@ private:
 // ============================================================================
 struct KI1H_VCAWidget : ModuleWidget {
   KI1H_VCAWidget(KI1H_VCA *module);
-};
-
-// ============================================================================
-// CHANNEL PROCESS METHOD
-// ============================================================================
-
-void Channel::process(float input, float cvIn) {
-  // CV is unipolar (0-1 range), acts as gain
-  float ampd = input * cvIn;
-  output = ki1h::softLimit(ampd);
 };
 
 // ============================================================================

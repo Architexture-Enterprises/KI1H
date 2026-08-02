@@ -11,18 +11,6 @@
 #include <string>
 
 // ============================================================================
-// CHANNEL CLASS DEFINITION
-// ============================================================================
-struct Channel {
-  void process(float input, float cvIn);
-  float getOutput() const {
-    return output;
-  };
-
-  float output = 0.f;
-};
-
-// ============================================================================
 // MIX CLASS DEFINITION
 // ============================================================================
 struct Mix {
@@ -54,7 +42,7 @@ struct KI1H_MIX : Module {
   void process(const ProcessArgs &args) override;
 
 private:
-  Channel channels[5];
+  ki1h::Channel channels[5];
   Mix mix;
   static constexpr float CV_SCALE = 5.f;
 };
@@ -64,15 +52,6 @@ private:
 // ============================================================================
 struct KI1H_MIXWidget : ModuleWidget {
   KI1H_MIXWidget(KI1H_MIX *module);
-};
-
-// ============================================================================
-// CHANNEL PROCESS METHOD
-// ============================================================================
-
-void Channel::process(float input, float cvIn) {
-  float ampd = input * cvIn;
-  output = ki1h::softLimit(ampd);
 };
 
 // ============================================================================
