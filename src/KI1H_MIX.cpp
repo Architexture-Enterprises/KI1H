@@ -11,13 +11,13 @@ struct Mix {
   void process(const std::array<float, 5> &all);
   float getAllOut() const {
     return allOut;
-  };
+  }
   float getLeftOut() const {
     return leftOut;
-  };
+  }
   float getRightOut() const {
     return rightOut;
-  };
+  }
 
   float allOut = 0.f;
   float leftOut = 0.f;
@@ -63,7 +63,7 @@ void Mix::process(const std::array<float, 5> &all) {
   allOut = ki1h::softLimit(std::accumulate(all.begin(), all.end(), 0.0f));
   leftOut = ki1h::softLimit(std::accumulate(odds.begin(), odds.end(), 0.0f));
   rightOut = ki1h::softLimit(std::accumulate(evens.begin(), evens.end(), 0.0f));
-};
+}
 
 // ============================================================================
 // MODULE CONFIGURATION
@@ -83,7 +83,7 @@ KI1H_MIX::KI1H_MIX() {
   configOutput(ALL_OUTPUT, "All");
   configOutput(L_OUTPUT, "Odds");
   configOutput(R_OUTPUT, "Evens");
-};
+}
 
 void KI1H_MIX::process(const ProcessArgs &args) {
   std::array<float, 5> all;
@@ -116,7 +116,7 @@ void KI1H_MIX::process(const ProcessArgs &args) {
   outputs[L_OUTPUT].setVoltage(mix.getLeftOut());
   outputs[ALL_OUTPUT].setVoltage(mix.getAllOut());
   outputs[R_OUTPUT].setVoltage(mix.getRightOut());
-};
+}
 
 KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
   setModule(module);
@@ -148,7 +148,7 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
                                                module, KI1H_MIX::CV1_INPUT + i));
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
                                              KI1H_MIX::IN1_INPUT + i));
-  };
-};
+  }
+}
 
 Model *modelKI1H_MIX = createModel<KI1H_MIX, KI1H_MIXWidget>("KI1H-MIX");

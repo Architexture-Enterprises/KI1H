@@ -11,10 +11,10 @@ struct VCA {
   void process(const std::array<float, 5> &channels, const std::array<float, 5> &pans);
   float getLeftOut() const {
     return leftOut;
-  };
+  }
   float getRightOut() const {
     return rightOut;
-  };
+  }
 
   float leftOut = 0.f;
   float rightOut = 0.f;
@@ -84,7 +84,7 @@ void VCA::process(const std::array<float, 5> &channels, const std::array<float, 
 
   leftOut = ki1h::softLimit(leftSum);
   rightOut = ki1h::softLimit(rightSum);
-};
+}
 
 // ============================================================================
 // MODULE CONFIGURATION
@@ -106,7 +106,7 @@ KI1H_VCA::KI1H_VCA() {
   panCv2Switch->snapEnabled = true;
   configOutput(L_OUTPUT, "Left");
   configOutput(R_OUTPUT, "Right");
-};
+}
 
 void KI1H_VCA::process(const ProcessArgs &args) {
   std::array<float, 5> channelOutputs;
@@ -173,7 +173,7 @@ void KI1H_VCA::process(const ProcessArgs &args) {
   // Set left and right outputs
   outputs[L_OUTPUT].setVoltage(mix.getLeftOut());
   outputs[R_OUTPUT].setVoltage(mix.getRightOut());
-};
+}
 
 KI1H_VCAWidget::KI1H_VCAWidget(KI1H_VCA *module) {
   setModule(module);
@@ -207,7 +207,7 @@ KI1H_VCAWidget::KI1H_VCAWidget(KI1H_VCA *module) {
                                                module, KI1H_VCA::CV1_INPUT + i));
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
                                              KI1H_VCA::IN1_INPUT + i));
-  };
-};
+  }
+}
 
 Model *modelKI1H_VCA = createModel<KI1H_VCA, KI1H_VCAWidget>("KI1H-VCA");

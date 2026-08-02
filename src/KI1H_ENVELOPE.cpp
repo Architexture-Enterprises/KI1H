@@ -181,8 +181,6 @@ struct KI1H_ENVELOPEWidget : ModuleWidget {
   KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module);
 };
 
-// void ADEnvelope::process() {};
-
 // ============================================================================
 // MODULE CONFIGURATION
 // ============================================================================
@@ -205,8 +203,6 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
   configInput(TRIGGER3_INPUT, "AD2 Trigger");
   configInput(TRIGGER4_INPUT, "ASD2 Trigger");
 
-  // configInput(ATK_CV, "Attack CV");
-  // configInput(REL_CV, "Release CV");
   configOutput(EOA1_OUTPUT, "AD1 End of Attack");
   configOutput(EOA2_OUTPUT, "ASD1 End of Attack");
   configOutput(EOA3_OUTPUT, "AD2 End of Attack");
@@ -219,7 +215,7 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
   configOutput(OUT2_OUTPUT, "ASD1 Output");
   configOutput(OUT3_OUTPUT, "AD2 Output");
   configOutput(OUT4_OUTPUT, "ASD2 Output");
-};
+}
 
 void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   // ATK, TRIGGER, OUT, EOA and EOR all stride by 2 between the two AD/ASD
@@ -305,7 +301,7 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     outputs[EOA1_OUTPUT + asdIdx].setVoltage(asd[i].eoa * CV_SCALE);
     outputs[EOR1_OUTPUT + asdIdx].setVoltage(asd[i].eor * CV_SCALE);
   }
-};
+}
 
 KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
   setModule(module);
@@ -372,6 +368,6 @@ KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
                                              module, KI1H_ENVELOPE::EOR4_OUTPUT));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[4], ROWS[5])), module,
                                               KI1H_ENVELOPE::OUT4_OUTPUT));
-};
+}
 
 Model *modelKI1H_ENVELOPE = createModel<KI1H_ENVELOPE, KI1H_ENVELOPEWidget>("KI1H-ENVELOPE");

@@ -59,6 +59,8 @@ struct Oscillator {
 
   ki1h::Phasor phase;
   float output = 0.f;
+  // Not an alias for phase.phase: updatePhases sets this before the subclasses
+  // apply hard/soft sync, so it holds the pre-sync phase. The blink LEDs read it.
   float blinkPhase = 0.f;
   float sin = 0.f;
 
