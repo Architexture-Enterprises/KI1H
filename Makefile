@@ -21,3 +21,31 @@ DISTRIBUTABLES += $(wildcard presets)
 
 # Include the Rack plugin Makefile framework
 include $(RACK_DIR)/plugin.mk
+
+# ============================================================================
+# UNIT TESTS
+# ============================================================================
+# Tests for the pure DSP in src/dsp.hpp. Kept out of SOURCES so they never end
+# up in the plugin, and declared after the include above so `all` stays the
+# default goal.
+#
+#   make test RACK_DIR=/path/to/Rack-SDK
+#
+# tests/rack_stubs.cpp supplies the two NanoVG symbols that rack.hpp's
+# static-init color constants need; nothing else from libRack is required, so
+# the suite links and runs without the Rack binary.
+TEST_SOURCES := tests/test_dsp.cpp tests/rack_stubs.cpp
+TEST_BINARY := tests/run_tests
+
+$(TEST_BINARY): $(TEST_SOURCES) src/dsp.hpp src/plugin.hpp
+	$(CXX) -std=c++11 -g -O1 -Wall -Wextra -Wno-unused-parameter \
+		-Isrc -I$(RACK_DIR)/include -I$(RACK_DIR)/dep/include \
+		-o $@ $(TEST_SOURCES)
+
+test: $(TEST_BINARY)
+	./$(TEST_BINARY)
+
+cleantest:
+	rm -f $(TEST_BINARY)
+
+.PHONY: test cleantest
