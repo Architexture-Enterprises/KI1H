@@ -45,6 +45,13 @@ public:
   float laggedOutput = 0.f;
   float clockOutput = 0.f;
   dsp::SchmittTrigger sampleTrigger;
+
+  // Cached lag coefficient. lagTime is a knob and sampleTime only moves on a
+  // sample-rate change, so the exp() behind it almost never needs redoing.
+  // The sentinels are negative so the first process() call always misses.
+  float lagAlpha = 0.f;
+  float cachedLagTime = -1.f;
+  float cachedSampleTime = -1.f;
 };
 
 // ============================================================================
@@ -174,12 +181,17 @@ void SampleAndHold::process(float pitch, float clockIn, float sampleRate, float 
   // ============================================================================
   // APPLY EXPONENTIAL LAG TO SAMPLED VALUE
   // ============================================================================
-  // Calculate time constant for 99% settling in lagTime
-  float timeConstant = lagTime / 4.605f;
-  float alpha = 1.0f - exp(-sampleTime / timeConstant);
+  // Recompute only when the knob or the sample rate actually moves.
+  if (lagTime != cachedLagTime || sampleTime != cachedSampleTime) {
+    cachedLagTime = lagTime;
+    cachedSampleTime = sampleTime;
+    // Time constant for 99% settling in lagTime
+    float timeConstant = lagTime / 4.605f;
+    lagAlpha = 1.0f - std::exp(-sampleTime / timeConstant);
+  }
 
   // Apply lag filtering to the sampled value
-  laggedOutput = alpha * sampledValue + (1.0f - alpha) * laggedOutput;
+  laggedOutput = lagAlpha * sampledValue + (1.0f - lagAlpha) * laggedOutput;
 };
 
 // ============================================================================
