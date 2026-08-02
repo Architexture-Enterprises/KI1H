@@ -46,15 +46,19 @@ inline float pitchToFreq(float pitch) {
 struct Phasor {
   float phase = 0.f;
 
-  /** Advances by freq * dt and wraps.
+  /** Advances by freq * dt and wraps. Returns whether the phase passed 1.0
+  during the step, which the band-limiting in the VCO needs to place its
+  discontinuity corrections.
 
   The wrap is a floor, not a single subtraction. `if (phase >= 1) phase -= 1`
   only handles phase < 2, so at very high frequencies or very low sample rates
   — where freq * dt exceeds 1 — it leaves the phase above 1 and the oscillator
   silently breaks. */
-  void advance(float freq, float dt) {
+  bool advance(float freq, float dt) {
     phase += freq * dt;
-    phase -= std::floor(phase);
+    float wraps = std::floor(phase);
+    phase -= wraps;
+    return wraps > 0.f;
   }
 
   void reset() {

@@ -8,10 +8,10 @@
   "authorEmail": "architextureenterprises@gmail.com",
   "authorUrl": "https://github.com/architextureenterprises",
   "pluginUrl": "https://github.com/architextureenterprises",
-  "manualUrl": "",
-  "sourceUrl": "",
+  "manualUrl": "https://github.com/Architexture-Enterprises/KI1H/blob/main/README.md",
+  "sourceUrl": "https://github.com/Architexture-Enterprises/KI1H",
   "donateUrl": "",
-  "changelogUrl": "",
+  "changelogUrl": "https://github.com/Architexture-Enterprises/KI1H/blob/main/CHANGELOG.md",
   "modules": [
     {
       "slug": "KI1H-VCO",

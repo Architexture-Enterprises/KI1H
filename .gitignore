@@ -14,3 +14,5 @@
 # Test binary and its debug bundle
 /tests/run_tests
 /tests/run_tests.dSYM/
+# Generated locally (bear -- make / compiledb make); machine-specific paths
+compile_commands.json
