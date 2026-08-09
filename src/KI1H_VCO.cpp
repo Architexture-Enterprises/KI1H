@@ -591,11 +591,11 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   // ============================================================================
   // OSCILLATOR 1 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_VCO::PFINE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
                                                KI1H_VCO::PCOARSE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
                                                KI1H_VCO::PULSEWIDTH_PARAM));
 
   // ============================================================================
@@ -611,7 +611,7 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   // ============================================================================
   addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
                                              KI1H_VCO::PITCH_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
+  addParam(createParamCentered<KI1HSwitch>(mm2px(Vec(COLUMNS[1], ROWS[1])), module,
                                              KI1H_VCO::WAVE_PARAM));
   addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                              KI1H_VCO::PW1_INPUT));
@@ -625,23 +625,23 @@ KI1H_VCOWidget::KI1H_VCOWidget(KI1H_VCO *module) {
   // ============================================================================
   addInput(
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[3])), module, KI1H_VCO::SYNC_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[3])), module,
+  addParam(createParamCentered<KI1HSwitch>(mm2px(Vec(COLUMNS[1], ROWS[3])), module,
                                              KI1H_VCO::SYNC_PARAM));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[1], ROWS[2])), module,
+  addParam(createParamCentered<KI1HSwitch>(mm2px(Vec(COLUMNS[1], ROWS[2])), module,
                                              KI1H_VCO::FM_SWITCH_PARAM));
 
   // ============================================================================
   // OSCILLATOR 2 - CONTROL KNOBS & OUTPUT
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
                                                KI1H_VCO::PFINE2_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[4])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[1], ROWS[4])), module,
                                                KI1H_VCO::PCOARSE2_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
                                                KI1H_VCO::SHAPE_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
                                                KI1H_VCO::FM_PARAM));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
                                                KI1H_VCO::AM_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[3] - HALF_C / 2, ROWS[5] - HALF_R)),
                                              module, KI1H_VCO::WAVE2_OUTPUT));

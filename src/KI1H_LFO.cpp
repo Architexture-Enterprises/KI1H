@@ -327,13 +327,13 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // LFO 1 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[0], ROWS[2])), module,
                                                KI1H_LFO::RATE1CV_PARAM));
-  addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[3] - HALF_R)), module,
+  addParam(createParamCentered<KI1HBigKnob>(mm2px(Vec(COLUMNS[1], ROWS[3] - HALF_R)), module,
                                                   KI1H_LFO::RATE1_PARAM));
   addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[0], ROWS[3])), module,
                                              KI1H_LFO::CV1_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
+  addParam(createParamCentered<KI1HSwitch>(mm2px(Vec(COLUMNS[2], ROWS[2])), module,
                                              KI1H_LFO::WAVE1_PARAM));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[2], ROWS[3])), module,
                                               KI1H_LFO::WAVE1_OUTPUT));
@@ -341,13 +341,13 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // LFO 2 - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[0], ROWS[4])), module,
                                                KI1H_LFO::RATE2CV_PARAM));
-  addParam(createParamCentered<RoundBigBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[5] - HALF_R)), module,
+  addParam(createParamCentered<KI1HBigKnob>(mm2px(Vec(COLUMNS[1], ROWS[5] - HALF_R)), module,
                                                   KI1H_LFO::RATE2_PARAM));
   addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[0], ROWS[5])), module,
                                              KI1H_LFO::CV2_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
+  addParam(createParamCentered<KI1HSwitch>(mm2px(Vec(COLUMNS[2], ROWS[4])), module,
                                              KI1H_LFO::WAVE2_PARAM));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[2], ROWS[5])), module,
                                               KI1H_LFO::WAVE2_OUTPUT));
@@ -355,15 +355,15 @@ KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
   // ============================================================================
   // S&H - CONTROL KNOBS
   // ============================================================================
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[1], ROWS[0])), module,
                                                KI1H_LFO::SRATE_PARAM));
   addInput(createInputCentered<BananutOrange>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
                                               KI1H_LFO::CLOCK_INPUT));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_LFO::SLAG_PARAM));
   addInput(
       createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1], ROWS[1])), module, KI1H_LFO::SAMP_INPUT));
-  addParam(createParamCentered<BefacoSwitch>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[1] - HALF_R)),
+  addParam(createParamCentered<KI1HSwitch>(mm2px(Vec(COLUMNS[2] - HALF_C, ROWS[1] - HALF_R)),
                                              module, KI1H_LFO::SWAVE_PARAM));
   addOutput(createOutputCentered<BananutBlue>(mm2px(Vec(COLUMNS[2], ROWS[1])), module,
                                               KI1H_LFO::SWAVE_OUTPUT));

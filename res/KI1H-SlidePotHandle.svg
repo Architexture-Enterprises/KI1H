@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KI1H slide-pot handle: dark plastic cap, embossed grip ridges, white indicator. -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="17.25px" height="19.27px" viewBox="0 0 17.25 19.27" xml:space="preserve">
+<defs>
+<linearGradient id="hbody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:#4c4f55"/><stop offset="0.5" style="stop-color:#25272b"/><stop offset="1" style="stop-color:#0b0c0e"/></linearGradient>
+<linearGradient id="hbevel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:#ffffff;stop-opacity:0.22"/><stop offset="0.22" style="stop-color:#ffffff;stop-opacity:0"/><stop offset="0.80" style="stop-color:#000000;stop-opacity:0"/><stop offset="1" style="stop-color:#000000;stop-opacity:0.45"/></linearGradient>
+</defs>
+<rect x="0.4" y="0.35" rx="2.6" ry="2.6" fill="url(#hbody)" stroke="#050506" stroke-width="0.5" width="16.45" height="18.57"/>
+<rect x="1.6" y="2.580" width="14.05" height="0.40" fill="#585c62"/>
+<rect x="1.6" y="3.000" width="14.05" height="0.55" fill="#0c0d0f"/>
+<rect x="1.6" y="4.130" width="14.05" height="0.40" fill="#585c62"/>
+<rect x="1.6" y="4.550" width="14.05" height="0.55" fill="#0c0d0f"/>
+<rect x="1.6" y="5.680" width="14.05" height="0.40" fill="#585c62"/>
+<rect x="1.6" y="6.100" width="14.05" height="0.55" fill="#0c0d0f"/>
+<rect x="1.6" y="7.230" width="14.05" height="0.40" fill="#585c62"/>
+<rect x="1.6" y="7.650" width="14.05" height="0.55" fill="#0c0d0f"/>
+<rect x="1.6" y="11.200" width="14.05" height="0.40" fill="#585c62"/>
+<rect x="1.6" y="11.620" width="14.05" height="0.55" fill="#0c0d0f"/>
+<rect x="1.6" y="12.750" width="14.05" height="0.40" fill="#585c62"/>
+<rect x="1.6" y="13.170" width="14.05" height="0.55" fill="#0c0d0f"/>
+<rect x="1.6" y="14.300" width="14.05" height="0.40" fill="#585c62"/>
+<rect x="1.6" y="14.720" width="14.05" height="0.55" fill="#0c0d0f"/>
+<rect x="1.6" y="15.850" width="14.05" height="0.40" fill="#585c62"/>
+<rect x="1.6" y="16.270" width="14.05" height="0.55" fill="#0c0d0f"/>
+<rect x="0.4" y="0.35" rx="2.6" ry="2.6" fill="url(#hbevel)" width="16.45" height="18.57"/>
+<rect x="1.2" y="8.685" rx="0.5" ry="0.5" fill="#050506" width="14.85" height="1.9"/>
+<rect x="1.4" y="9.135" rx="0.35" ry="0.35" fill="#ffffff" width="14.45" height="1.0"/>
+</svg>
