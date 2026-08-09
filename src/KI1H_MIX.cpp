@@ -89,9 +89,13 @@ void KI1H_MIX::process(const ProcessArgs &args) {
   std::array<float, 5> all;
   // Process all 6 channels
   for (int i = 0; i < 5; i++) {
-    // Get input signal and CV
-    float input = inputs[IN1_INPUT + i].getVoltage();
-    // Get attenuverter parameter value
+    bool inputConnected = inputs[IN1_INPUT + i].isConnected();
+    // With nothing patched into the channel input, the channel becomes a
+    // CV/offset source: the input normals to 1V so the fader (-1.2..1.2) sets a
+    // DC level between -1.2V and +1.2V at the channel output. CV + attenuverter
+    // still modulate it, but this synthesized signal never reaches the mix.
+    float input = inputConnected ? inputs[IN1_INPUT + i].getVoltage() : 1.f;
+    // Fader position doubles as the channel level.
     float attenuverter = params[MIX1_PARAM + i].getValue();
     float cv = 0.0f;
 
@@ -104,10 +108,12 @@ void KI1H_MIX::process(const ProcessArgs &args) {
     // Set output
     float output = channels[i].getOutput();
     outputs[OUT1_OUTPUT + i].setVoltage(output);
-    if (outputs[OUT1_OUTPUT + i].isConnected())
-      all[i] = 0.f;
-    else
+    // Only a real input signal reaches the mix busses, and only when the
+    // channel's own output isn't stealing it.
+    if (inputConnected && !outputs[OUT1_OUTPUT + i].isConnected())
       all[i] = output;
+    else
+      all[i] = 0.f;
   }
 
   mix.process(all);
