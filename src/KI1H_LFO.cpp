@@ -227,7 +227,7 @@ KI1H_LFO::KI1H_LFO() {
   auto sWaveParam =
       configSwitch(SWAVE_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sawtooth", "Ramp", "Triangle"});
   sWaveParam->snapEnabled = true;
-  configParam(SLAG_PARAM, 0.0f, 0.2f, 0.f, "Lag", "ms", 0.f, 1000.f, 0.f);
+  configParam(SLAG_PARAM, 0.0f, 0.5f, 0.f, "Lag", "ms", 0.f, 1000.f, 0.f);
   configInput(SAMP_INPUT, "Ext. In");
   configInput(CLOCK_INPUT, "Clock in");
   configOutput(SWAVE_OUTPUT, "S&H Out");

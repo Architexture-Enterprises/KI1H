@@ -536,10 +536,16 @@ void KI1H_VCO::process(const ProcessArgs &args) {
   // ============================================================================
   // OSCILLATOR 2 - AM PROCESSING
   // ============================================================================
+  // The AM knob is a depth/amount control on the incoming modulation, not a
+  // gain on the whole oscillator. At 0 the AM input is ignored and the carrier
+  // passes through untouched; at 1 the carrier is fully multiplied by the
+  // modulation signal; in between the two are crossfaded (e.g. 0.5 = 50% AM).
   float am = 1.f;
-  if (inputs[AM_INPUT].isConnected())
-    // clamp am input between 0 and 1
-    am = params[AM_PARAM].getValue() * clamp(inputs[AM_INPUT].getVoltage() / CV_SCALE, 0.f, 1.f);
+  if (inputs[AM_INPUT].isConnected()) {
+    float depth = params[AM_PARAM].getValue();
+    float modSignal = clamp(inputs[AM_INPUT].getVoltage() / CV_SCALE, 0.f, 1.f);
+    am = (1.f - depth) + depth * modSignal;
+  }
   // ============================================================================
   // OSCILLATOR 2 - PWM PROCESSING
   // ============================================================================
