@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- KI1H custom slide-pot track (ice-blue). Beveled body with a recessed channel. viewBox matches BefacoSlidePot. -->
+
+<svg
+   version="1.1"
+   x="0px"
+   y="0px"
+   width="8.59132px"
+   height="104px"
+   viewBox="0 0 8.59132 104"
+   xml:space="preserve"
+   id="svg9"
+   sodipodi:docname="KI1H-SlidePot.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
+   id="namedview9"
+   pagecolor="#505050"
+   bordercolor="#ffffff"
+   borderopacity="1"
+   inkscape:showpageshadow="0"
+   inkscape:pageopacity="0"
+   inkscape:pagecheckerboard="1"
+   inkscape:deskcolor="#505050"
+   inkscape:zoom="7.8637407"
+   inkscape:cx="-4.2600591"
+   inkscape:cy="22.381206"
+   inkscape:window-width="1430"
+   inkscape:window-height="647"
+   inkscape:window-x="0"
+   inkscape:window-y="33"
+   inkscape:window-maximized="0"
+   inkscape:current-layer="svg9" />
+<defs
+   id="defs6">
+	<!-- body bevel: lit on the left edge, shaded on the right -->
+	<linearGradient
+   id="ki1h_fader_body"
+   x1="0"
+   y1="0"
+   x2="1"
+   y2="0">
+		<stop
+   offset="0"
+   style="stop-color:#3a5f72"
+   id="stop1" />
+		<stop
+   offset="0.35"
+   style="stop-color:#152d3a"
+   id="stop2" />
+		<stop
+   offset="1"
+   style="stop-color:#05101a"
+   id="stop3" />
+	</linearGradient>
+	<!-- channel: dark recess, faint inner shadow -->
+	<linearGradient
+   id="ki1h_fader_slot"
+   x1="0"
+   y1="0"
+   x2="1"
+   y2="0">
+		<stop
+   offset="0"
+   style="stop-color:#010609"
+   id="stop4" />
+		<stop
+   offset="0.5"
+   style="stop-color:#0a1620"
+   id="stop5" />
+		<stop
+   offset="1"
+   style="stop-color:#020a10"
+   id="stop6" />
+	</linearGradient>
+</defs>
+<!-- body -->
+<rect
+   x="0"
+   y="0"
+   rx="4.29566"
+   ry="4.29566"
+   fill="url(#ki1h_fader_body)"
+   stroke="#03222f"
+   stroke-width="0.4"
+   width="8.59132"
+   height="104"
+   id="rect6"
+   style="fill:#000000;fill-opacity:1;stroke:none" />
+<!-- left-edge highlight -->
+
+<!-- recessed travel channel -->
+<rect
+   x="3.09566"
+   y="5"
+   rx="1.2"
+   ry="1.2"
+   fill="url(#ki1h_fader_slot)"
+   width="2.4"
+   height="94"
+   id="rect8" />
+<!-- glowing centre guide line -->
+
+</svg>
