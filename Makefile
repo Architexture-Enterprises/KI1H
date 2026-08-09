@@ -49,3 +49,17 @@ cleantest:
 	rm -f $(TEST_BINARY)
 
 .PHONY: test cleantest
+
+# ============================================================================
+# MACOS INSTALLER (.pkg)
+# ============================================================================
+# Wraps `make dist` output in a per-user .pkg that installs the plugin into
+# ~/Library/Application Support/Rack2/plugins-mac-<arch>/Architexture/.
+#
+#   make pkg RACK_DIR=/path/to/Rack-SDK
+#
+# Override the target arch with ARCH=x64 (defaults to the built dylib's arch).
+pkg: dist
+	packaging/build-pkg.sh
+
+.PHONY: pkg
