@@ -216,7 +216,7 @@ KI1H_KAOSWidget::KI1H_KAOSWidget(KI1H_KAOS *module) {
   // ============================================================================
   addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
   addChild(createWidget<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-  addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
+  addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[0], ROWS[0])), module,
                                                KI1H_KAOS::NOISE_PARAM));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[0], ROWS[1])), module,
                                              KI1H_KAOS::NOISE_OUTPUT));

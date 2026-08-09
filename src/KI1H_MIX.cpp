@@ -146,9 +146,9 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
   for (int i = 0; i < 5; i++) {
     addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[1] - HALF_R)), module,
                                                KI1H_MIX::OUT1_OUTPUT + i));
-    addParam(createParamCentered<BefacoSlidePot>(mm2px(Vec(COLUMNS[i], ROWS[2])), module,
+    addParam(createParamCentered<KI1HSlidePot>(mm2px(Vec(COLUMNS[i], ROWS[2])), module,
                                                  KI1H_MIX::MIX1_PARAM + i));
-    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(COLUMNS[i], ROWS[4] - HALF_R)), module,
+    addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[i], ROWS[4] - HALF_R)), module,
                                                  KI1H_MIX::ATT1_PARAM + i));
     addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[i], ROWS[4] + (HALF_R / 2))),
                                                module, KI1H_MIX::CV1_INPUT + i));

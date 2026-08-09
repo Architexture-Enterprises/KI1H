@@ -83,7 +83,48 @@ struct BananutBlack : app::SvgPort {
 
 struct BefacoToggle : app::SvgSwitch {
   BefacoToggle() {
-    addFrame(Svg::load(asset::system("res/ComponentLibrary/BefacoSwitch_0.svg")));
-    addFrame(Svg::load(asset::system("res/ComponentLibrary/BefacoSwitch_2.svg")));
+    addFrame(Svg::load(asset::plugin(pluginInstance, "res/KI1H-Switch_0.svg")));
+    addFrame(Svg::load(asset::plugin(pluginInstance, "res/KI1H-Switch_2.svg")));
+  }
+};
+
+// Custom ice-blue knob (drop-in replacement for RoundBlackKnob). Same 28.35px
+// footprint, so existing createParamCentered<> layout math is unchanged.
+struct KI1HKnob : RoundKnob {
+  KI1HKnob() {
+    setSvg(Svg::load(asset::plugin(pluginInstance, "res/KI1H-RoundBlackKnob.svg")));
+    bg->setSvg(Svg::load(asset::plugin(pluginInstance, "res/KI1H-RoundBlackKnob_bg.svg")));
+  }
+};
+
+// Custom ice-blue big knob (drop-in replacement for RoundBigBlackKnob, 45px).
+struct KI1HBigKnob : RoundKnob {
+  KI1HBigKnob() {
+    setSvg(Svg::load(asset::plugin(pluginInstance, "res/KI1H-RoundBigBlackKnob.svg")));
+    bg->setSvg(Svg::load(asset::plugin(pluginInstance, "res/KI1H-RoundBigBlackKnob_bg.svg")));
+  }
+};
+
+// Custom ice-blue slider (drop-in replacement for BefacoSlidePot). Track and
+// handle share the stock dimensions, so the handle-travel geometry matches.
+struct KI1HSlidePot : app::SvgSlider {
+  KI1HSlidePot() {
+    setBackgroundSvg(Svg::load(asset::plugin(pluginInstance, "res/KI1H-SlidePot.svg")));
+    setHandleSvg(Svg::load(asset::plugin(pluginInstance, "res/KI1H-SlidePotHandle.svg")));
+    math::Vec margin = math::Vec(3.5, 3.5);
+    // Handle is 17.25px wide (wider than the 8.59px track), so recentre X on the
+    // track: track centre X = 3.5 + 8.59132/2 = 7.796, handle left = 7.796 - 17.25/2.
+    setHandlePos(math::Vec(-4.329, 87).plus(margin), math::Vec(-4.329, -2).plus(margin));
+    background->box.pos = margin;
+    box.size = background->box.size.plus(margin.mult(2));
+  }
+};
+
+// Custom ice-blue 3-position switch (drop-in replacement for BefacoSwitch).
+struct KI1HSwitch : app::SvgSwitch {
+  KI1HSwitch() {
+    addFrame(Svg::load(asset::plugin(pluginInstance, "res/KI1H-Switch_0.svg")));
+    addFrame(Svg::load(asset::plugin(pluginInstance, "res/KI1H-Switch_1.svg")));
+    addFrame(Svg::load(asset::plugin(pluginInstance, "res/KI1H-Switch_2.svg")));
   }
 };
