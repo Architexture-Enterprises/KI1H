@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KI1H toggle switch, frame 0 (down). Round base + vertical bat lever. Higher value = lever up. viewBox matches BefacoSwitch. -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="27.99345px" height="31.5642px"
+	 viewBox="0 0 27.99345 31.5642" xml:space="preserve">
+<defs>
+	<radialGradient id="ki1h_sw_base_0" cx="0.4" cy="0.34" r="0.75">
+		<stop offset="0" style="stop-color:#2c586e"/>
+		<stop offset="0.6" style="stop-color:#132c3a"/>
+		<stop offset="1" style="stop-color:#060f18"/>
+	</radialGradient>
+	<radialGradient id="ki1h_sw_seat_0" cx="0.5" cy="0.5" r="0.5">
+		<stop offset="0.72" style="stop-color:#000000;stop-opacity:0.5"/>
+		<stop offset="1" style="stop-color:#000000;stop-opacity:0"/>
+	</radialGradient>
+	<linearGradient id="ki1h_sw_lever_0" x1="0" y1="0" x2="1" y2="0">
+		<stop offset="0" style="stop-color:#9fe9ff"/>
+		<stop offset="0.5" style="stop-color:#4bb6e0"/>
+		<stop offset="1" style="stop-color:#1c6f96"/>
+	</linearGradient>
+</defs>
+<!-- cast shadow under round base -->
+<ellipse fill="url(#ki1h_sw_seat_0)" cx="13.997" cy="16.6" rx="9.9" ry="9.4"/>
+<!-- round mounting base -->
+<circle fill="url(#ki1h_sw_base_0)" stroke="#0099e5" stroke-width="0.6" cx="13.997" cy="15.782" r="9.1"/>
+<circle fill="none" stroke="#03121a" stroke-width="0.5" cx="13.997" cy="15.782" r="6.4"/>
+<!-- lever stem -->
+<rect x="13.197" y="15.782" rx="0.8" ry="0.8" fill="#123040" stroke="#03121a" stroke-width="0.3"
+	  width="1.6" height="7.61800000000000000000"/>
+<!-- lever bat tip (domed) -->
+<circle fill="url(#ki1h_sw_lever_0)" stroke="#0a3145" stroke-width="0.5" cx="13.997" cy="23.4" r="4.5"/>
+<ellipse fill="#ffffff" opacity="0.4" cx="12.6" cy="21.9" rx="1.7" ry="1.1"/>
+</svg>
