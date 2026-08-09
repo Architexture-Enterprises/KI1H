@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="28.3476px" height="28.3476px" viewBox="0 0 28.3476 28.3476" xml:space="preserve">
+<!-- KI1H knob face (static: light does not rotate). -->
+<defs>
+<linearGradient id="skirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:#53565c"/><stop offset="0.55" style="stop-color:#25272b"/><stop offset="1" style="stop-color:#0b0c0e"/></linearGradient>
+<radialGradient id="face" cx="0.35" cy="0.32" r="0.85"><stop offset="0" style="stop-color:#4c4f55"/><stop offset="0.5" style="stop-color:#2c2f33"/><stop offset="0.82" style="stop-color:#17181b"/><stop offset="1" style="stop-color:#0d0e10"/></radialGradient>
+</defs>
+<ellipse fill="#000000" fill-opacity="0.35" cx="14.1738" cy="14.8738" rx="13.7" ry="13.289"/>
+<circle fill="url(#skirt)" cx="14.1738" cy="14.1738" r="13.7"/>
+<circle fill="none" stroke="#050506" stroke-width="0.5" cx="14.1738" cy="14.1738" r="12.55"/>
+<circle fill="url(#face)" cx="14.1738" cy="14.1738" r="12.2"/>
+<ellipse fill="#ffffff" fill-opacity="0.13" cx="11.5738" cy="10.7738" rx="5.2" ry="3.6"/>
+</svg>
