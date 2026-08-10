@@ -28,9 +28,43 @@ struct Mix {
 // MIX MODULE DEFINITION
 // ============================================================================
 struct KI1H_MIX : Module {
-  enum ParamIds { ATT1_PARAM, ATT2_PARAM, ATT3_PARAM, ATT4_PARAM, ATT5_PARAM, MIX1_PARAM, MIX2_PARAM, MIX3_PARAM, MIX4_PARAM, MIX5_PARAM, NUM_PARAMS };
-  enum InputIds { CV1_INPUT, CV2_INPUT, CV3_INPUT, CV4_INPUT, CV5_INPUT, IN1_INPUT, IN2_INPUT, IN3_INPUT, IN4_INPUT, IN5_INPUT, NUM_INPUTS };
-  enum OutputIds { OUT1_OUTPUT, OUT2_OUTPUT, OUT3_OUTPUT, OUT4_OUTPUT, OUT5_OUTPUT, ALL_OUTPUT, L_OUTPUT, R_OUTPUT, NUM_OUTPUTS };
+  enum ParamIds {
+    ATT1_PARAM,
+    ATT2_PARAM,
+    ATT3_PARAM,
+    ATT4_PARAM,
+    ATT5_PARAM,
+    MIX1_PARAM,
+    MIX2_PARAM,
+    MIX3_PARAM,
+    MIX4_PARAM,
+    MIX5_PARAM,
+    NUM_PARAMS
+  };
+  enum InputIds {
+    CV1_INPUT,
+    CV2_INPUT,
+    CV3_INPUT,
+    CV4_INPUT,
+    CV5_INPUT,
+    IN1_INPUT,
+    IN2_INPUT,
+    IN3_INPUT,
+    IN4_INPUT,
+    IN5_INPUT,
+    NUM_INPUTS
+  };
+  enum OutputIds {
+    OUT1_OUTPUT,
+    OUT2_OUTPUT,
+    OUT3_OUTPUT,
+    OUT4_OUTPUT,
+    OUT5_OUTPUT,
+    ALL_OUTPUT,
+    L_OUTPUT,
+    R_OUTPUT,
+    NUM_OUTPUTS
+  };
 
   KI1H_MIX();
   void process(const ProcessArgs &args) override;
@@ -73,9 +107,10 @@ KI1H_MIX::KI1H_MIX() {
 
   // Configure parameters for all 6 channels
   for (int i = 0; i < 5; i++) {
-    configParam(ATT1_PARAM + i, -1.f, 1.f, 0.f, "Attenuverter" + std::to_string(i + 1), "%", 0.f, 100,
+    configParam(ATT1_PARAM + i, -1.f, 1.f, 0.f, "Attenuverter" + std::to_string(i + 1), "%", 0.f,
+                100, 0.f);
+    configParam(MIX1_PARAM + i, -1.2f, 1.2f, 0.f, "Level" + std::to_string(i + 1), "%", 0.f, 100,
                 0.f);
-    configParam(MIX1_PARAM + i, -1.2f, 1.2f, 0.f, "Level" + std::to_string(i + 1), "%", 0.f, 100, 0.f);
     configInput(CV1_INPUT + i, "CV" + std::to_string(i + 1));
     configInput(IN1_INPUT + i, "In" + std::to_string(i + 1));
     configOutput(OUT1_OUTPUT + i, "Out" + std::to_string(i + 1));
@@ -94,7 +129,7 @@ void KI1H_MIX::process(const ProcessArgs &args) {
     // CV/offset source: the input normals to 1V so the fader (-1.2..1.2) sets a
     // DC level between -1.2V and +1.2V at the channel output. CV + attenuverter
     // still modulate it, but this synthesized signal never reaches the mix.
-    float input = inputConnected ? inputs[IN1_INPUT + i].getVoltage() : 1.f;
+    float input = inputConnected ? inputs[IN1_INPUT + i].getVoltage() : 5.f;
     // Fader position doubles as the channel level.
     float attenuverter = params[MIX1_PARAM + i].getValue();
     float cv = 0.0f;
@@ -138,8 +173,8 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
   // ============================================================================
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[1] - HALF_C, ROWS[0])), module,
                                              KI1H_MIX::L_OUTPUT));
-  addOutput(
-      createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[0])), module, KI1H_MIX::ALL_OUTPUT));
+  addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[2], ROWS[0])), module,
+                                             KI1H_MIX::ALL_OUTPUT));
   addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[4] - HALF_C, ROWS[0])), module,
                                              KI1H_MIX::R_OUTPUT));
 
@@ -147,9 +182,9 @@ KI1H_MIXWidget::KI1H_MIXWidget(KI1H_MIX *module) {
     addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[1] - HALF_R)), module,
                                                KI1H_MIX::OUT1_OUTPUT + i));
     addParam(createParamCentered<KI1HSlidePot>(mm2px(Vec(COLUMNS[i], ROWS[2])), module,
-                                                 KI1H_MIX::MIX1_PARAM + i));
+                                               KI1H_MIX::MIX1_PARAM + i));
     addParam(createParamCentered<KI1HKnob>(mm2px(Vec(COLUMNS[i], ROWS[4] - HALF_R)), module,
-                                                 KI1H_MIX::ATT1_PARAM + i));
+                                           KI1H_MIX::ATT1_PARAM + i));
     addInput(createInputCentered<BananutBlack>(mm2px(Vec(COLUMNS[i], ROWS[4] + (HALF_R / 2))),
                                                module, KI1H_MIX::CV1_INPUT + i));
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(COLUMNS[i], ROWS[5])), module,
