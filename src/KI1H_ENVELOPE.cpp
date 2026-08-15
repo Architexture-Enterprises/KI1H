@@ -25,6 +25,15 @@ struct Envelope {
     env = envState = 0.f;
   }
 
+  /** Restores exactly the state a freshly constructed envelope has. */
+  void reset() {
+    env = 0.f;
+    eoa = 0.f;
+    eor = 1.f;
+    stage = STAGE_OFF;
+    envState = 0.f;
+  }
+
   /** Advances envState for the current stage. Shared by both subclasses; the
   only stage that behaves differently between them is the transition logic,
   which is processTransition's job. */
@@ -159,8 +168,36 @@ struct KI1H_ENVELOPE : Module {
   // [0]=AD1 [1]=ASD1 [2]=AD2 [3]=ASD2
   dsp::SchmittTrigger gateTrigger[4];
 
+  // Frames to latch, but not act on, trigger edges after a load or reset. Every
+  // output port starts at 0 V, so an EOR that should already be resting high
+  // produces a spurious 0->10 V rising edge one sample later. With an EOR jack
+  // patched back to a trigger input (a self-cycling envelope) that false edge
+  // fires every envelope in the ring at once, so a chain that was ping-ponging
+  // in series when the patch was saved comes back running in parallel — roughly
+  // twice as fast. During these frames the SchmittTriggers still latch, so they
+  // absorb the startup edge without firing, and the restored phase survives.
+  int loadSettleFrames = 0;
+  static constexpr int kLoadSettleFrames = 2;
+
   KI1H_ENVELOPE();
   void process(const ProcessArgs &args) override;
+
+  // Rack persists only params, so without these the envelopes restart cold on
+  // every load and a chained pair loses the phase relationship it was saved at.
+  // Persist each envelope's live stage/level so a reloaded patch resumes where
+  // it left off; see loadSettleFrames for why that alone is not enough.
+  json_t *dataToJson() override;
+  void dataFromJson(json_t *root) override;
+
+  void onReset(const ResetEvent &e) override {
+    Module::onReset(e);
+    for (int i = 0; i < 2; i++) {
+      ad[i].reset();
+      asd[i].reset();
+    }
+    loadSettleFrames = kLoadSettleFrames;
+  }
+
   static constexpr float minStageTime = 0.003f; // in seconds
   static constexpr float maxStageTime = 10.f;   // in seconds
 
@@ -215,6 +252,10 @@ KI1H_ENVELOPE::KI1H_ENVELOPE() {
   configOutput(OUT2_OUTPUT, "ASD1 Output");
   configOutput(OUT3_OUTPUT, "AD2 Output");
   configOutput(OUT4_OUTPUT, "ASD2 Output");
+
+  // A freshly placed module also starts with every output at 0 V, so the same
+  // startup edge would auto-start a self-patched ring in parallel. Settle it.
+  loadSettleFrames = kLoadSettleFrames;
 }
 
 void KI1H_ENVELOPE::process(const ProcessArgs &args) {
@@ -228,6 +269,13 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
   static const int adRelParam[2] = {REL1_PARAM, REL3_PARAM};
   static const int asdRelParam[2] = {REL2_PARAM, REL4_PARAM};
   static const int asdSusParam[2] = {SUS_PARAM, SUS2_PARAM};
+
+  // See loadSettleFrames: swallow trigger edges (but keep latching them) for the
+  // first frames after a load/reset so the 0 V -> resting-level jump on the jacks
+  // does not fire a self-patched ring.
+  const bool settling = loadSettleFrames > 0;
+  if (loadSettleFrames > 0)
+    loadSettleFrames--;
 
   for (int i = 0; i < 2; i++) {
     const int adIdx = 2 * i;      // AD1, then AD2
@@ -253,7 +301,7 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     const bool adTriggered =
         gateTrigger[adIdx].process(inputs[TRIGGER1_INPUT + adIdx].getVoltage());
     const bool adHeld = gateTrigger[adIdx].isHigh();
-    if (adTriggered)
+    if (adTriggered && !settling)
       ad[i].retrigger();
 
     ad[i].process(args.sampleTime, adHeld);
@@ -282,7 +330,7 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     // not a gate, so holding off it would barely sustain at all.
     const bool asdHeld = chained ? gateTrigger[adIdx].isHigh() : gateTrigger[asdIdx].isHigh();
     const bool asr = params[ASR1_PARAM + i].getValue() > 0.f;
-    if (asdTriggered)
+    if (asdTriggered && !settling)
       asd[i].retrigger();
 
     asd[i].process(args.sampleTime, asr, asdHeld);
@@ -297,6 +345,55 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
     outputs[EOA1_OUTPUT + asdIdx].setVoltage(asd[i].eoa * CV_SCALE);
     outputs[EOR1_OUTPUT + asdIdx].setVoltage(asd[i].eor * CV_SCALE);
   }
+}
+
+// ============================================================================
+// STATE PERSISTENCE
+// ============================================================================
+// The four envelopes in index order: [0]=AD1 [1]=ASD1 [2]=AD2 [3]=ASD2. sustain
+// (ASD only) is omitted — it is re-derived from its param every sample. The
+// SchmittTrigger gate states are omitted too: they re-latch from the jacks
+// during the loadSettleFrames window, so they need no persisting.
+json_t *KI1H_ENVELOPE::dataToJson() {
+  Envelope *env[4] = {&ad[0], &asd[0], &ad[1], &asd[1]};
+  json_t *root = json_object();
+  json_t *envs = json_array();
+  for (int i = 0; i < 4; i++) {
+    json_t *e = json_object();
+    json_object_set_new(e, "stage", json_integer(env[i]->stage));
+    json_object_set_new(e, "env", json_real(env[i]->env));
+    json_object_set_new(e, "envState", json_real(env[i]->envState));
+    json_object_set_new(e, "eoa", json_real(env[i]->eoa));
+    json_object_set_new(e, "eor", json_real(env[i]->eor));
+    json_array_append_new(envs, e);
+  }
+  json_object_set_new(root, "envelopes", envs);
+  return root;
+}
+
+void KI1H_ENVELOPE::dataFromJson(json_t *root) {
+  json_t *envs = json_object_get(root, "envelopes");
+  if (!envs)
+    return;
+  Envelope *env[4] = {&ad[0], &asd[0], &ad[1], &asd[1]};
+  for (int i = 0; i < 4; i++) {
+    json_t *e = json_array_get(envs, i);
+    if (!e)
+      continue;
+    if (json_t *j = json_object_get(e, "stage"))
+      env[i]->stage = (Envelope::Stage)json_integer_value(j);
+    if (json_t *j = json_object_get(e, "env"))
+      env[i]->env = json_number_value(j);
+    if (json_t *j = json_object_get(e, "envState"))
+      env[i]->envState = json_number_value(j);
+    if (json_t *j = json_object_get(e, "eoa"))
+      env[i]->eoa = json_number_value(j);
+    if (json_t *j = json_object_get(e, "eor"))
+      env[i]->eor = json_number_value(j);
+  }
+  // Restored a running state: swallow the load-time startup edge so the ring
+  // resumes at its saved phase instead of re-syncing.
+  loadSettleFrames = kLoadSettleFrames;
 }
 
 KI1H_ENVELOPEWidget::KI1H_ENVELOPEWidget(KI1H_ENVELOPE *module) {
