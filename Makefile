@@ -63,3 +63,23 @@ pkg: dist
 	packaging/build-pkg.sh
 
 .PHONY: pkg
+
+# ============================================================================
+# WINDOWS INSTALLER (.exe)
+# ============================================================================
+# Wraps the win-x64 build in a per-user NSIS .exe that installs the plugin into
+# %LOCALAPPDATA%\Rack2\plugins-win-x64\Architexture\ and the patches into
+# %LOCALAPPDATA%\Rack2\patches\ (the same two drops as the macOS .pkg).
+#
+# The plugin.dll is NOT built here — it is cross-compiled by the VCV
+# rack-plugin-toolchain Docker image, which emits a win-x64 .vcvplugin. Point
+# this target at that archive (or an extracted Architexture/ folder):
+#
+#   make exe PLUGIN_SRC=../rack-plugin-toolchain/plugin-build/Architexture-2.0.0-win-x64.vcvplugin
+#
+# Requires makensis (brew install makensis); runs on macOS/Linux — no Windows.
+PLUGIN_SRC ?=
+exe:
+	packaging/build-exe.sh "$(PLUGIN_SRC)"
+
+.PHONY: exe

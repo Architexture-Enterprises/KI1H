@@ -49,6 +49,9 @@ public:
   float laggedOutput = 0.f;
   float clockOutput = 0.f;
   dsp::SchmittTrigger sampleTrigger;
+  // Squares an external clock: turns any input waveform into the gate state that
+  // drives the 0-10 V clock output.
+  dsp::SchmittTrigger extClockGate;
 
   // Cached lag coefficient. lagTime is a knob and sampleTime only moves on a
   // sample-rate change, so the exp() behind it almost never needs redoing.
@@ -136,10 +139,16 @@ void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, flo
   // The clock half always runs: it drives CLOCK_OUTPUT and CLOCK_LIGHT.
   clockPhase.advance(clockFreq, sampleTime);
 
-  if (sampleRate == -1)
-    clockOutput = clockIn;
-  else
-    clockOutput = ki1h::square(clockPhase.phase);
+  // The clock output is always a clean 0-10 V square. Internally it free-runs off
+  // clockPhase; with a clock patched it squares that input — a bipolar sine, or a
+  // hot/uneven external square — into the same 0-10 V gate via hysteresis
+  // thresholds, so the output level never depends on the input's amplitude.
+  if (sampleRate == -1) {
+    extClockGate.process(clockIn, 0.1f, 1.f);
+    clockOutput = extClockGate.isHigh() ? 10.f : 0.f;
+  } else {
+    clockOutput = ki1h::square(clockPhase.phase) > 0.f ? 10.f : 0.f;
+  }
 
   // Everything below feeds SWAVE_OUTPUT only, so it can be skipped when that jack
   // is empty — saving the waveform generator, a Schmitt trigger and an exp.
@@ -292,14 +301,16 @@ void KI1H_LFO::process(const ProcessArgs &args) {
   if (ext)
     sampleIn = inputs[SAMP_INPUT].getVoltage() * 0.2f;
   float clockIn = inputs[CLOCK_INPUT].getVoltage();
-  if (inputs[CLOCK_INPUT].isConnected())
+  bool clockConn = inputs[CLOCK_INPUT].isConnected();
+  if (clockConn)
     sRate = -1.f;
 
   // lfo2.process() above has already advanced lfo2.phase for this sample.
   SNH.process(lfo2.phase.phase, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime,
               outputs[SWAVE_OUTPUT].isConnected());
   outputs[SWAVE_OUTPUT].setVoltage(CV_SCALE * SNH.getOutput());
-  outputs[CLOCK_OUTPUT].setVoltage(CV_SCALE * SNH.getClock());
+  // getClock() already returns the finished 0-10 V square, so no CV_SCALE here.
+  outputs[CLOCK_OUTPUT].setVoltage(SNH.getClock());
 
   lights[BLINK1_LIGHT].setBrightness(lfo1.getBlink() < 0.5f ? 1.f : 0.f);
   lights[BLINK2_LIGHT].setBrightness(lfo2.getBlink() < 0.5f ? 1.f : 0.f);
