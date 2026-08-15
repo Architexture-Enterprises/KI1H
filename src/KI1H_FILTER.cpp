@@ -52,6 +52,19 @@ struct BPFilter : Filter {
     b2 = b0;
     a1 = (-2.0f * cos_w) / a0;
     a2 = (1.0f - alpha) / a0;
+
+    // This is an RBJ low-pass whose resonant peak gain rises with Q (~Q for
+    // high Q). Left raw, a Q of ~13 boosts a signal at the corner by >20 dB,
+    // so a +/-5 V input came out at tens of volts. Divide the numerator by the
+    // analog-prototype peak magnitude so the peak sits at unity regardless of
+    // resonance — the band still passes at full level, it just no longer adds
+    // gain of its own.
+    if (q > 0.70710678f) {
+      float peak = q / std::sqrt(1.0f - 1.0f / (4.0f * q * q));
+      b0 /= peak;
+      b1 /= peak;
+      b2 /= peak;
+    }
   }
   /** Restores exactly the state a freshly constructed BPFilter has. */
   void reset() {
@@ -177,8 +190,14 @@ void LPFilter::process(float input, float cutoff, float resonance, float samplet
     cutoff_coeff = 1.0f - std::exp(-2.0f * PI_F * cutoff * sampletime);
   }
 
-  // Single feedback calculation
-  float feedback = stages[11] * resonance;
+  // Single feedback calculation. The feedback is saturated, not linear: at the
+  // top of the resonance range the loop gain exceeds unity and a purely linear
+  // ladder diverges without bound (output ran off to 1e30 V). A real ladder's
+  // transistors clip the feedback, which is what limits self-oscillation to a
+  // finite amplitude. tanh scaled to the +/-5 V rail models that and keeps the
+  // output in range while still letting the filter ring and self-oscillate.
+  static constexpr float fbRail = 5.f;
+  float feedback = fbRail * std::tanh(stages[11] * resonance / fbRail);
   float signal = input - feedback;
 
   // Cascade of 12 one-pole lowpasses. Left as a loop and let -O3 unroll it.
@@ -394,8 +413,11 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
 
   outputs[LP_OUTPUT].setVoltage(lpfilter.getOutput());
   outputs[HP_OUTPUT].setVoltage(hpfilter.getOutput());
-  outputs[BP1_OUTPUT].setVoltage(bpfilter1.getOutput() * 2.f);
-  outputs[BP2_OUTPUT].setVoltage(bpfilter2.getOutput() * 2.f);
+  // No make-up gain here: the old *2 doubled an already unity-passband band
+  // into +/-10 V territory. With the biquad peak normalized (setCoefficients)
+  // the band already passes at full level.
+  outputs[BP1_OUTPUT].setVoltage(bpfilter1.getOutput());
+  outputs[BP2_OUTPUT].setVoltage(bpfilter2.getOutput());
 }
 
 KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
