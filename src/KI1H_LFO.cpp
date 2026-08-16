@@ -7,6 +7,21 @@
 enum LFOWaves { LFO_SINE, LFO_SAW, LFO_SQUARE };
 enum SHWaves { SH_SAW, SH_RAMP, SH_TRIANGLE };
 
+// External-clock multiplier/divider. Whenever CLOCK_INPUT is patched, the Sample
+// Rate knob is repurposed as a mult/div selector: its travel is quantized to
+// seven power-of-two ratios with the centre detent at unity.
+//   exp:   -3  -2  -1   0  +1  +2  +3
+//   ratio  /8  /4  /2  x1  x2  x4  x8
+static constexpr float SRATE_MIN = -10.f;
+static constexpr float SRATE_MAX = -3.4f;
+static constexpr int CLOCK_RATIO_STEPS = 7;
+
+// Maps a normalized [0,1] knob position to a ratio exponent in [-3, +3].
+static int clockRatioExp(float norm) {
+  int bucket = clamp((int)std::round(norm * (CLOCK_RATIO_STEPS - 1)), 0, CLOCK_RATIO_STEPS - 1);
+  return bucket - (CLOCK_RATIO_STEPS - 1) / 2;
+}
+
 // ============================================================================
 // LFO CLASS DEFINITION
 // ============================================================================
@@ -32,16 +47,13 @@ struct LFO {
 // ============================================================================
 struct SampleAndHold : LFO {
 public:
-  void process(float oscPhase, float clockIn, float sampleRate, float sampleIn, bool sampInConn,
-               int waveType, float lagTime, float sampleTime, bool needOutput);
+  void process(float oscPhase, float clockIn, float sampleRate, int ratioExp, float sampleIn,
+               bool sampInConn, int waveType, float lagTime, float sampleTime, bool needOutput);
   float getOutput() const {
     return laggedOutput;
   }
-  float getClock() {
+  float getClock() const {
     return clockOutput;
-  }
-  float getBlink() const {
-    return clockPhase.phase;
   }
 
   ki1h::Phasor clockPhase;
@@ -52,6 +64,13 @@ public:
   // Squares an external clock: turns any input waveform into the gate state that
   // drives the 0-10 V clock output.
   dsp::SchmittTrigger extClockGate;
+
+  // External-clock multiplier/divider state (used only while a clock is patched).
+  ki1h::Phasor ratioPhase;   // phase-locked generator for the x N / / N output
+  float estClockFreq = 0.f;  // Hz, estimated from the last measured input period
+  float timeSinceEdge = 0.f; // seconds since the last input rising edge
+  int divCounter = 0;        // input edges counted toward the next / N output edge
+  int cachedRatioExp = 99;   // last ratio, so a knob change re-locks the generator
 
   // Cached lag coefficient. lagTime is a knob and sampleTime only moves on a
   // sample-rate change, so the exp() behind it almost never needs redoing.
@@ -88,6 +107,25 @@ private:
   LFO lfo1, lfo2;
   SampleAndHold SNH;
   static constexpr float CV_SCALE = 5.f;
+};
+
+// When a clock is patched, the Sample Rate knob is a mult/div selector, so its
+// tooltip should read out the ratio rather than a meaningless free-run frequency.
+struct ClockRateQuantity : ParamQuantity {
+  std::string getString() override {
+    if (module && module->inputs[KI1H_LFO::CLOCK_INPUT].isConnected()) {
+      int exp = clockRatioExp(getScaledValue());
+      std::string ratio;
+      if (exp == 0)
+        ratio = "x1";
+      else if (exp > 0)
+        ratio = string::f("x%d", 1 << exp);
+      else
+        ratio = string::f("/%d", 1 << (-exp));
+      return "Clock ratio: " + ratio;
+    }
+    return ParamQuantity::getString();
+  }
 };
 
 // ============================================================================
@@ -128,9 +166,9 @@ void LFO::process(float pitch, int waveType, float sampleTime) {
 // ============================================================================
 // SAMPLE AND HOLD PROCESS METHOD
 // ============================================================================
-void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, float sampleIn,
-                            bool sampInConn, int sWaveType, float lagTime, float sampleTime,
-                            bool needOutput) {
+void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, int ratioExp,
+                            float sampleIn, bool sampInConn, int sWaveType, float lagTime,
+                            float sampleTime, bool needOutput) {
 
   float clockFreq = dsp::FREQ_C4 * dsp::exp2_taylor5(sampleRate);
   // ============================================================================
@@ -144,9 +182,51 @@ void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, flo
   // hot/uneven external square — into the same 0-10 V gate via hysteresis
   // thresholds, so the output level never depends on the input's amplitude.
   if (sampleRate == -1) {
-    extClockGate.process(clockIn, 0.1f, 1.f);
-    clockOutput = extClockGate.isHigh() ? 10.f : 0.f;
+    // External clock patched: the Sample Rate knob is a mult/div selector.
+    bool rising = extClockGate.process(clockIn, 0.1f, 1.f);
+    timeSinceEdge += sampleTime;
+
+    // Re-lock the generator cleanly whenever the selected ratio changes, so a
+    // knob turn snaps to the new ratio instead of drifting in from the old phase.
+    if (ratioExp != cachedRatioExp) {
+      cachedRatioExp = ratioExp;
+      ratioPhase.reset();
+      divCounter = 0;
+    }
+
+    if (rising) {
+      // Estimate the input clock rate from the period that just completed.
+      if (timeSinceEdge > 0.f)
+        estClockFreq = 1.f / timeSinceEdge;
+      timeSinceEdge = 0.f;
+    }
+
+    if (ratioExp == 0) {
+      // x1: an exact, jitter-free clone of the squared input.
+      clockOutput = extClockGate.isHigh() ? 10.f : 0.f;
+    } else if (estClockFreq <= 0.f) {
+      // No period measured yet: hold low until the input clock is running.
+      clockOutput = 0.f;
+    } else if (ratioExp > 0) {
+      // x N: generator at N times the input rate, hard-synced to every input edge
+      // so its faster pulses stay phase-locked to the incoming clock.
+      ratioPhase.advance(estClockFreq * (float)(1 << ratioExp), sampleTime);
+      if (rising)
+        ratioPhase.phase = 0.f;
+      clockOutput = ki1h::square(ratioPhase.phase) > 0.f ? 10.f : 0.f;
+    } else {
+      // / N: one output period spans N input periods. Free-run at 1/N the input
+      // rate, re-syncing on every N-th input edge to hold the division locked.
+      int div = 1 << (-ratioExp);
+      ratioPhase.advance(estClockFreq / (float)div, sampleTime);
+      if (rising && ++divCounter >= div) {
+        divCounter = 0;
+        ratioPhase.phase = 0.f;
+      }
+      clockOutput = ki1h::square(ratioPhase.phase) > 0.f ? 10.f : 0.f;
+    }
   } else {
+    cachedRatioExp = 99; // force a clean re-lock when a clock is next patched
     clockOutput = ki1h::square(clockPhase.phase) > 0.f ? 10.f : 0.f;
   }
 
@@ -181,8 +261,12 @@ void SampleAndHold::process(float oscPhase, float clockIn, float sampleRate, flo
   // ============================================================================
   // SAMPLE ON TRIGGER RISING EDGE
   // ============================================================================
+  // The S&H tracks the raw incoming clock unmodified: with an external clock
+  // patched it samples on the input's own edges, independent of the mult/div
+  // ratio applied to CLOCK_OUTPUT. Free-running, it follows the internal clock.
+  float sampleClock = (sampleRate == -1) ? (extClockGate.isHigh() ? 10.f : 0.f) : clockOutput;
   // Use Schmitt trigger for robust edge detection with hysteresis
-  if (sampleTrigger.process(clockOutput)) {
+  if (sampleTrigger.process(sampleClock)) {
     // Sample the current oscillator output value on rising edge
     sampledValue = sampInConn ? sampleIn : output;
   }
@@ -232,7 +316,8 @@ KI1H_LFO::KI1H_LFO() {
   // ============================================================================
   // S&H - PARAMETER CONFIGURATION
   // ============================================================================
-  configParam(SRATE_PARAM, -10.f, -3.4f, -5.3f, "Sample Rate", "Hz", 2.f, dsp::FREQ_C4, 0.f);
+  configParam<ClockRateQuantity>(SRATE_PARAM, SRATE_MIN, SRATE_MAX, -5.3f, "Sample Rate", "Hz", 2.f,
+                                 dsp::FREQ_C4, 0.f);
   auto sWaveParam =
       configSwitch(SWAVE_PARAM, 0.f, 2.f, 0.f, "Wave", {"Sawtooth", "Ramp", "Triangle"});
   sWaveParam->snapEnabled = true;
@@ -302,19 +387,26 @@ void KI1H_LFO::process(const ProcessArgs &args) {
     sampleIn = inputs[SAMP_INPUT].getVoltage() * 0.2f;
   float clockIn = inputs[CLOCK_INPUT].getVoltage();
   bool clockConn = inputs[CLOCK_INPUT].isConnected();
-  if (clockConn)
+  int ratioExp = 0;
+  if (clockConn) {
     sRate = -1.f;
+    // Repurpose the Sample Rate knob as the mult/div selector (centre = x1).
+    float norm = (params[SRATE_PARAM].getValue() - SRATE_MIN) / (SRATE_MAX - SRATE_MIN);
+    ratioExp = clockRatioExp(norm);
+  }
 
   // lfo2.process() above has already advanced lfo2.phase for this sample.
-  SNH.process(lfo2.phase.phase, clockIn, sRate, sampleIn, ext, sWaveType, lagTime, args.sampleTime,
-              outputs[SWAVE_OUTPUT].isConnected());
+  SNH.process(lfo2.phase.phase, clockIn, sRate, ratioExp, sampleIn, ext, sWaveType, lagTime,
+              args.sampleTime, outputs[SWAVE_OUTPUT].isConnected());
   outputs[SWAVE_OUTPUT].setVoltage(CV_SCALE * SNH.getOutput());
   // getClock() already returns the finished 0-10 V square, so no CV_SCALE here.
   outputs[CLOCK_OUTPUT].setVoltage(SNH.getClock());
 
   lights[BLINK1_LIGHT].setBrightness(lfo1.getBlink() < 0.5f ? 1.f : 0.f);
   lights[BLINK2_LIGHT].setBrightness(lfo2.getBlink() < 0.5f ? 1.f : 0.f);
-  lights[CLOCK_LIGHT].setBrightness(SNH.getBlink() < 0.5f ? 1.f : 0.f);
+  // The clock light follows the actual clock output, so it stays meaningful at
+  // the multiplied/divided rate instead of the now-unused free-run phase.
+  lights[CLOCK_LIGHT].setBrightness(SNH.getClock() > 5.f ? 1.f : 0.f);
 }
 
 KI1H_LFOWidget::KI1H_LFOWidget(KI1H_LFO *module) {
