@@ -5,6 +5,25 @@
 // instead of promoting through the double overloads of exp/cos/sin.
 static constexpr float PI_F = 3.14159265358979323846f;
 
+// Analog-style headroom + output stage. Internally each filter is allowed to
+// swing up to +/-HEADROOM, the way a modern op-amp fed from a hot rail can —
+// so resonance rings up loud instead of being flattened to unity. The output
+// stage is then a soft clip that is transparent for ordinary signal levels
+// (everything up to CLIP_KNEE passes untouched, no distortion of clean audio)
+// and only rounds the hot peaks off, trending toward CLIP_CEIL without ever
+// exceeding it. HEADROOM sizes the internal ceilings (LP feedback rail, BP
+// resonant-gain cap); CLIP_CEIL is what the jacks approach.
+static constexpr float HEADROOM = 12.f;
+static constexpr float CLIP_KNEE = 7.f;
+static constexpr float CLIP_CEIL = 10.f;
+static inline float softClip(float x) {
+  float a = std::fabs(x);
+  if (a <= CLIP_KNEE)
+    return x; // ordinary levels pass through untouched
+  float range = CLIP_CEIL - CLIP_KNEE;
+  return std::copysign(CLIP_KNEE + range * std::tanh((a - CLIP_KNEE) / range), x);
+}
+
 // ============================================================================
 // CLASS DEFINITION
 // ============================================================================
@@ -52,6 +71,26 @@ struct BPFilter : Filter {
     b2 = b0;
     a1 = (-2.0f * cos_w) / a0;
     a2 = (1.0f - alpha) / a0;
+
+    // This is an RBJ low-pass whose resonant peak gain rises with Q (~Q for
+    // high Q). Left raw, a Q of ~13 boosts a signal at the corner by >20 dB,
+    // so a +/-5 V input came out at tens of volts. Rather than flatten it to
+    // unity (which made resonance sound dead and quiet), cap the peak gain at
+    // BP_MAX_PEAK: resonance still rings, but only up to the +/-HEADROOM the
+    // output stage is built around. Below the cap the peak passes through at
+    // its natural gain; above it the numerator is scaled down to sit at the
+    // cap. BP_MAX_PEAK is HEADROOM / 5 V, i.e. a nominal +/-5 V input at the
+    // resonant frequency just fills the headroom.
+    static constexpr float BP_MAX_PEAK = HEADROOM / 5.f;
+    if (q > 0.70710678f) {
+      float peak = q / std::sqrt(1.0f - 1.0f / (4.0f * q * q));
+      if (peak > BP_MAX_PEAK) {
+        float scale = BP_MAX_PEAK / peak;
+        b0 *= scale;
+        b1 *= scale;
+        b2 *= scale;
+      }
+    }
   }
   /** Restores exactly the state a freshly constructed BPFilter has. */
   void reset() {
@@ -177,8 +216,14 @@ void LPFilter::process(float input, float cutoff, float resonance, float samplet
     cutoff_coeff = 1.0f - std::exp(-2.0f * PI_F * cutoff * sampletime);
   }
 
-  // Single feedback calculation
-  float feedback = stages[11] * resonance;
+  // Single feedback calculation. The feedback is saturated, not linear: at the
+  // top of the resonance range the loop gain exceeds unity and a purely linear
+  // ladder diverges without bound (output ran off to 1e30 V). A real ladder's
+  // transistors clip the feedback, which is what limits self-oscillation to a
+  // finite amplitude. tanh scaled to the +/-HEADROOM rail models that: it keeps
+  // the ladder inside the same headroom the output stage is built around while
+  // still letting the filter ring and self-oscillate.
+  float feedback = HEADROOM * std::tanh(stages[11] * resonance / HEADROOM);
   float signal = input - feedback;
 
   // Cascade of 12 one-pole lowpasses. Left as a loop and let -O3 unroll it.
@@ -392,10 +437,12 @@ void KI1H_FILTER::process(const ProcessArgs &args) {
     bpfilter2.process(bp2Input, bp2Freq, bp2Width, bp2Res, args.sampleTime);
   }
 
-  outputs[LP_OUTPUT].setVoltage(lpfilter.getOutput());
-  outputs[HP_OUTPUT].setVoltage(hpfilter.getOutput());
-  outputs[BP1_OUTPUT].setVoltage(bpfilter1.getOutput() * 2.f);
-  outputs[BP2_OUTPUT].setVoltage(bpfilter2.getOutput() * 2.f);
+  // Output stage: soft clip only (see softClip). Ordinary levels pass through
+  // untouched; hot resonant peaks round off toward +/-CLIP_CEIL.
+  outputs[LP_OUTPUT].setVoltage(softClip(lpfilter.getOutput()));
+  outputs[HP_OUTPUT].setVoltage(softClip(hpfilter.getOutput()));
+  outputs[BP1_OUTPUT].setVoltage(softClip(bpfilter1.getOutput()));
+  outputs[BP2_OUTPUT].setVoltage(softClip(bpfilter2.getOutput()));
 }
 
 KI1H_FILTERWidget::KI1H_FILTERWidget(KI1H_FILTER *module) {
