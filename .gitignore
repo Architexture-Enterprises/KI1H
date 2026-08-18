@@ -10,7 +10,6 @@
 /build
 /dep
 /dist
-/release
 
 # Test binary and its debug bundle
 /tests/run_tests

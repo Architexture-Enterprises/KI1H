@@ -75,7 +75,7 @@ pkg: dist
 # rack-plugin-toolchain Docker image, which emits a win-x64 .vcvplugin. Point
 # this target at that archive (or an extracted Architexture/ folder):
 #
-#   make exe PLUGIN_SRC=../rack-plugin-toolchain/plugin-build/Architexture-2.2.0-win-x64.vcvplugin
+#   make exe PLUGIN_SRC=../rack-plugin-toolchain/plugin-build/Architexture-2.1.0-win-x64.vcvplugin
 #
 # Requires makensis (brew install makensis); runs on macOS/Linux — no Windows.
 PLUGIN_SRC ?=
