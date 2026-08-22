@@ -14,6 +14,12 @@ struct Envelope {
   float eoa = 0.f;
   float eor = 1.f;
 
+  // End-of-attack is a 1 ms trigger pulse, not a latched level: processTransition
+  // fires it at the instant attack completes, and evolveEnvelope derives `eoa`
+  // from it every frame. A pulse cannot stick high through a held sustain the way
+  // a latched level could, which is what pinned the ASD's EOA jack at 10 V.
+  dsp::PulseGenerator eoaPulse;
+
   Stage stage = STAGE_OFF;
   float envState = 0.f;
   float attackTime = 0.1f, releaseTime = 0.1f;
@@ -21,6 +27,7 @@ struct Envelope {
   void retrigger() {
     eoa = 0.f;
     eor = 1.f;
+    eoaPulse.reset();
     stage = STAGE_ATTACK;
     env = envState = 0.f;
   }
@@ -30,6 +37,7 @@ struct Envelope {
     env = 0.f;
     eoa = 0.f;
     eor = 1.f;
+    eoaPulse.reset();
     stage = STAGE_OFF;
     envState = 0.f;
   }
@@ -58,26 +66,26 @@ struct Envelope {
       break;
     }
     }
+    // Advance the end-of-attack trigger and expose its level. eoaPulse.trigger()
+    // is called from processTransition (which runs just before this each frame).
+    eoa = eoaPulse.process(sampleTime) ? 1.f : 0.f;
   }
 };
 
 /** Attack then straight into release. Never reaches STAGE_SUSTAIN. */
 struct ADEnvelope : Envelope {
 
-  void processTransition(const bool held) {
+  // AD ignores the gate after it starts: attack runs to completion, then release.
+  void processTransition() {
     if (stage == STAGE_ATTACK) {
       if (envState >= 1.0f) {
-        eoa = 1.f;
+        eoaPulse.trigger(1e-3f);
         eor = 0.f;
         env = envState = 1.0f;
         stage = STAGE_RELEASE;
       }
     } else if (stage == STAGE_RELEASE) {
-      if (held) {
-        eoa = 1.f;
-      }
       if (envState <= 0.f) {
-        eoa = 0.f;
         eor = 1.f;
         stage = STAGE_OFF;
         env = envState = 0.f;
@@ -85,8 +93,8 @@ struct ADEnvelope : Envelope {
     }
   }
 
-  void process(const float &sampleTime, const bool held) {
-    processTransition(held);
+  void process(const float &sampleTime) {
+    processTransition();
     evolveEnvelope(sampleTime);
   }
 };
@@ -99,9 +107,9 @@ struct ASDEnvelope : Envelope {
 
   void processTransition(const bool asr, const bool held) {
     if (stage == STAGE_ATTACK) {
-      eoa = 1.f;
       eor = 0.f;
       if (envState >= sustain) {
+        eoaPulse.trigger(1e-3f);
         env = envState = sustain;
         if (asr) {
           stage = STAGE_SUSTAIN;
@@ -115,7 +123,6 @@ struct ASDEnvelope : Envelope {
       }
     } else if (stage == STAGE_RELEASE) {
       if (envState <= 0.f) {
-        eoa = 0.f;
         eor = 1.f;
         stage = STAGE_OFF;
         env = envState = 0.f;
@@ -300,11 +307,10 @@ void KI1H_ENVELOPE::process(const ProcessArgs &args) {
 
     const bool adTriggered =
         gateTrigger[adIdx].process(inputs[TRIGGER1_INPUT + adIdx].getVoltage());
-    const bool adHeld = gateTrigger[adIdx].isHigh();
     if (adTriggered && !settling)
       ad[i].retrigger();
 
-    ad[i].process(args.sampleTime, adHeld);
+    ad[i].process(args.sampleTime);
 
     outputs[OUT1_OUTPUT + adIdx].setVoltage(ad[i].env * CV_SCALE);
     outputs[EOA1_OUTPUT + adIdx].setVoltage(ad[i].eoa * CV_SCALE);
